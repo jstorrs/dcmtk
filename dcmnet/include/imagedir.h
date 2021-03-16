@@ -5,9 +5,10 @@ private:
 
   int serialCounter = 0;
   OFString targetAETitle = "";
-  char imageFileName[256] = "";
-  char tmpFileName[MAXPATHLEN] = "";
-  char newFileName[MAXPATHLEN] = "";
+  OFString tmpFileName = "";
+  OFString newFileName = "";
+  OFString tmpDir = "";
+  OFString newDir = "";
   OFString root = "";
   
 public:
@@ -37,30 +38,41 @@ public:
 	targetAETitle += "_";
       }
     }
+    OFStandard::combineDirAndFilename(tmpDir,root,"tmp");
+    OFStandard::combineDirAndFilename(newDir,root,targetAETitle);
+    if (!isValidDestination(newDir))
+      OFStandard::combineDirAndFilename(newDir,root,"new");
   }
   
   void
   generateFileNames(const T_DIMSE_C_StoreRQ *req) {
     // [Called AETitle].[YYYYMMDDHHMMSSMMM].[PID].[COUNTER].MODALITY.dcm
+    char imageFileName[NAME_MAX] = "";
     OFDateTime dateTime;
     dateTime.setCurrentDateTime();
-    snprintf(imageFileName, 256, "%s.%04u%02u%02u.%02u%02u%02u.%d.%06d.%s.dcm",
-	    targetAETitle.c_str(),
-	    dateTime.getDate().getYear(), dateTime.getDate().getMonth(), dateTime.getDate().getDay(),
-	    dateTime.getTime().getHour(), dateTime.getTime().getMinute(),dateTime.getTime().getIntSecond(),
-	    getpid(), serialCounter++, dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"));
-    snprintf(tmpFileName, MAXPATHLEN, "%s%c%s%c%s", root.c_str(), PATH_SEPARATOR, "tmp", PATH_SEPARATOR, imageFileName);
-    snprintf(newFileName, MAXPATHLEN, "%s%c%s%c%s", root.c_str(), PATH_SEPARATOR, "new", PATH_SEPARATOR, imageFileName);
+    snprintf(imageFileName, NAME_MAX, "%s.%04u%02u%02u%02u%02u%02u%03u.%d.%06d.%s.dcm",
+	     targetAETitle.c_str(),
+	     dateTime.getDate().getYear(), dateTime.getDate().getMonth(), dateTime.getDate().getDay(),
+	     dateTime.getTime().getHour(), dateTime.getTime().getMinute(),dateTime.getTime().getIntSecond(), dateTime.getTime().getMilliSecond(),
+	     getpid(), serialCounter++, dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"));
+    OFStandard::combineDirAndFilename(tmpFileName,tmpDir,imageFileName);
+    OFStandard::combineDirAndFilename(newFileName,newDir,imageFileName);
   }
 
   void
   getTempFileName(char *dst) {
-    OFStandard::strlcpy(dst, newFileName, MAXPATHLEN);
+    OFStandard::strlcpy(dst, tmpFileName.c_str(), PATH_MAX);
   }
 
   void
   finalizeDelivery() {
-    rename(tmpFileName,newFileName);
+    OFStandard::renameFile(tmpFileName,newFileName);
+  }
+
+  bool
+  isValidDestination(const OFString& dir)
+  {
+    return (OFStandard::dirExists(dir) && OFStandard::isWriteable(dir));
   }
 
 };
