@@ -79,7 +79,7 @@ END_EXTERN_C
 #ifdef PRIVATE_STORESCP_DECLARATIONS
 PRIVATE_STORESCP_DECLARATIONS
 #else
-#define OFFIS_CONSOLE_APPLICATION "storescp"
+#define OFFIS_CONSOLE_APPLICATION "storescp+"
 #endif
 
 static OFLogger storescpLogger = OFLog::getLogger("dcmtk.apps." OFFIS_CONSOLE_APPLICATION);
