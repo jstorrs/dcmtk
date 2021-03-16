@@ -2,7 +2,7 @@
 include_directories("${dcmjpls_SOURCE_DIR}/include" "${dcmjpeg_SOURCE_DIR}/include" "${dcmimage_SOURCE_DIR}/include" "${dcmimgle_SOURCE_DIR}/include")
 
 # declare executables
-foreach(PROGRAM dcmrecv dcmsend echoscu findscu getscu movescu storescp storescu termscu)
+foreach(PROGRAM dcmrecv dcmsend echoscu findscu getscu movescu storescp storescp+ storescu termscu)
   DCMTK_ADD_EXECUTABLE(${PROGRAM} ${PROGRAM})
 endforeach()
 
@@ -26,10 +26,10 @@ if(WITH_OPENSSL)
 endif()
 
 # make sure executables are linked to the corresponding libraries
-foreach(PROGRAM dcmrecv dcmsend echoscu findscu getscu movescu storescp storescu termscu)
+foreach(PROGRAM dcmrecv dcmsend echoscu findscu getscu movescu storescp storescp+ storescu termscu)
   DCMTK_TARGET_LINK_MODULES(${PROGRAM} dcmnet dcmdata oflog ofstd)
 endforeach()
-foreach(PROGRAM dcmrecv echoscu findscu storescp storescu)
+foreach(PROGRAM dcmrecv echoscu findscu storescp storescp+ storescu)
   DCMTK_TARGET_LINK_MODULES(${PROGRAM} dcmtls)
 endforeach()
 

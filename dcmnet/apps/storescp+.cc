@@ -63,10 +63,12 @@ END_EXTERN_C
 #include "dcmtk/dcmdata/dcdeftag.h"
 #include "dcmtk/dcmdata/dcostrmz.h"     /* for dcmZlibCompressionLevel */
 #include "dcmtk/dcmtls/tlsopt.h"      /* for DcmTLSOptions */
+#include "imagedir.h"
 
 #ifdef WITH_ZLIB
 #include <zlib.h>        /* for zlibVersion() */
 #endif
+
 
 // we assume that the inetd super server is available on all non-Windows systems
 #ifndef _WIN32
@@ -122,6 +124,7 @@ OFBool             opt_showPresentationContexts = OFFalse;
 OFBool             opt_uniqueFilenames = OFFalse;
 OFString           opt_fileNameExtension;
 OFBool             opt_timeNames = OFFalse;
+ImageDirManager    ImageDir;
 int                timeNameCounter = -1;   // "serial number" to differentiate between files with same timestamp
 OFCmdUnsignedInt   opt_port = 0;
 OFBool             opt_refuseAssociation = OFFalse;
@@ -312,6 +315,7 @@ int main(int argc, char *argv[])
   cmd.addGroup("output options:");
     cmd.addSubGroup("general:");
       cmd.addOption("--output-directory",       "-od",  1, "[d]irectory: string (default: \".\")", "write received objects to existing directory d");
+    ImageDir.addOptionSubGroup(cmd);
     cmd.addSubGroup("bit preserving mode:");
       cmd.addOption("--normal",                 "-B",      "allow implicit format conversions (default)");
       cmd.addOption("--bit-preserving",         "+B",      "write data exactly as read");
@@ -620,6 +624,7 @@ int main(int argc, char *argv[])
 #endif
 
     if (cmd.findOption("--output-directory")) app.checkValue(cmd.getValue(opt_outputDirectory));
+    ImageDir.parseOptions(app,cmd);
 
     cmd.beginOptionBlock();
     if (cmd.findOption("--normal")) opt_bitPreserving = OFFalse;
@@ -913,6 +918,8 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  ImageDir.setOutputDirectory(opt_outputDirectory);
+  
 #ifdef HAVE_FORK
   if (opt_forkMode)
     DUL_requestForkOnTransportConnectionReceipt(argc, argv);
@@ -1470,6 +1477,8 @@ static OFCondition acceptAssociation(T_ASC_Network *net, DcmAssociationConfigura
     calledAETitle = "\"";
     calledAETitle += OFSTRING_GUARD(calledTitle);
     calledAETitle += "\"";
+
+    ImageDir.setCalledAETitle(calledTitle);
   }
   else
   {
@@ -1958,6 +1967,9 @@ storeSCPCallback(
       }
     }
 
+    if ( ImageDir.active )
+      ImageDir.finalizeDelivery();
+    
     // in case opt_bitPreserving is set, do some other things
     if( opt_bitPreserving )
     {
@@ -2059,6 +2071,10 @@ static OFCondition storeSCP(
         // reset counter, because timestamp and therefore filename has changed
         timeNameCounter = -1;
       }
+    } else if (ImageDir.active)
+    {
+      ImageDir.generateFileNames(req);
+      ImageDir.getTempFileName(imageFileName);
     }
     else
     {
