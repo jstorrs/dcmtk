@@ -13,6 +13,39 @@ private:
   
 public:
 
+  OFBool active = OFFalse;
+
+  void
+  addOptionSubGroup(OFCommandLine &cmd)
+  {
+    cmd.addSubGroup("imagedir:");
+      cmd.addOption("--imagedir", "enable imagedir output mode");
+  }
+
+  void
+  parseOptions(OFConsoleApplication& app, OFCommandLine& cmd)
+  {
+    active = OFFalse;
+
+    cmd.beginOptionBlock();
+    if (cmd.findOption("--imagedir"))
+      {
+#define IMAGEDIR_CHECK_CONFLICT(x) if (cmd.findOption(x)) app.checkConflict("--imagedir",x,OFTrue)
+	IMAGEDIR_CHECK_CONFLICT("--timenames");
+	IMAGEDIR_CHECK_CONFLICT("--sort-conc-studies");
+	IMAGEDIR_CHECK_CONFLICT("--sort-on-study-uid");
+	IMAGEDIR_CHECK_CONFLICT("--sort-on-patientname");
+	IMAGEDIR_CHECK_CONFLICT("--exec-on-reception");
+	IMAGEDIR_CHECK_CONFLICT("--exec-on-eostudy");
+	IMAGEDIR_CHECK_CONFLICT("--rename-on-eostudy");
+	IMAGEDIR_CHECK_CONFLICT("--eostudy-timeout");
+	IMAGEDIR_CHECK_CONFLICT("--exec-sync");
+#undef IMAGEDIR_CHECK_CONFLICT
+	active = OFTrue;
+      }
+    cmd.endOptionBlock();
+  }
+
   void
   setOutputDirectory(const OFString &outputDirectory)
   {

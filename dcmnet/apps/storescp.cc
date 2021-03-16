@@ -124,7 +124,6 @@ OFBool             opt_showPresentationContexts = OFFalse;
 OFBool             opt_uniqueFilenames = OFFalse;
 OFString           opt_fileNameExtension;
 OFBool             opt_timeNames = OFFalse;
-OFBool             opt_imageDirMode = OFFalse;
 ImageDirManager    ImageDir;
 int                timeNameCounter = -1;   // "serial number" to differentiate between files with same timestamp
 OFCmdUnsignedInt   opt_port = 0;
@@ -316,7 +315,7 @@ int main(int argc, char *argv[])
   cmd.addGroup("output options:");
     cmd.addSubGroup("general:");
       cmd.addOption("--output-directory",       "-od",  1, "[d]irectory: string (default: \".\")", "write received objects to existing directory d");
-      cmd.addOption("--imagedir",               "+oi",     "enable imagedir mode");
+    ImageDir.addOptionSubGroup(cmd);
     cmd.addSubGroup("bit preserving mode:");
       cmd.addOption("--normal",                 "-B",      "allow implicit format conversions (default)");
       cmd.addOption("--bit-preserving",         "+B",      "write data exactly as read");
@@ -625,7 +624,7 @@ int main(int argc, char *argv[])
 #endif
 
     if (cmd.findOption("--output-directory")) app.checkValue(cmd.getValue(opt_outputDirectory));
-    if (cmd.findOption("--imagedir")) opt_imageDirMode = OFTrue;
+    ImageDir.parseOptions(app,cmd);
 
     cmd.beginOptionBlock();
     if (cmd.findOption("--normal")) opt_bitPreserving = OFFalse;
@@ -1968,7 +1967,7 @@ storeSCPCallback(
       }
     }
 
-    if ( opt_imageDirMode )
+    if ( ImageDir.active )
       ImageDir.finalizeDelivery();
     
     // in case opt_bitPreserving is set, do some other things
@@ -2072,7 +2071,7 @@ static OFCondition storeSCP(
         // reset counter, because timestamp and therefore filename has changed
         timeNameCounter = -1;
       }
-    } else if (opt_imageDirMode)
+    } else if (ImageDir.active)
     {
       ImageDir.generateFileNames(req);
       ImageDir.getTempFileName(imageFileName);
