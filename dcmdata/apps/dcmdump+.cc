@@ -28,6 +28,7 @@
 #include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/dcmdata/dcuid.h"      /* for dcmtk version name */
 #include "dcmtk/dcmdata/dcistrmz.h"   /* for dcmZlibExpectRFC1950Encoding */
+#include "dcmdump+.h"
 
 #define INCLUDE_CSTDLIB
 #define INCLUDE_CSTRING
@@ -833,6 +834,7 @@ static int dumpFile(STD_NAMESPACE ostream &out,
     /* dump complete file content */
     if (printTagCount == 0)
     {
+        // HOOK HERE //
         dset->print(out, printFlags, 0 /*level*/, pixelFileName, &pixelCounter);
     } else {
         OFBool firstTag = OFTrue;

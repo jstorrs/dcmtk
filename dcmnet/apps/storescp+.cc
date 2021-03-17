@@ -63,7 +63,7 @@ END_EXTERN_C
 #include "dcmtk/dcmdata/dcdeftag.h"
 #include "dcmtk/dcmdata/dcostrmz.h"     /* for dcmZlibCompressionLevel */
 #include "dcmtk/dcmtls/tlsopt.h"      /* for DcmTLSOptions */
-#include "imagedir.h"
+#include "storescp+.h"
 
 #ifdef WITH_ZLIB
 #include <zlib.h>        /* for zlibVersion() */
