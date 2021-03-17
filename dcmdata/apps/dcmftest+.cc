@@ -30,7 +30,6 @@
 
 #include "dcmtk/dcmdata/dcmetinf.h"
 #include "dcmtk/ofstd/ofconapp.h"
-#include "dcmtk/ofstd/offilsys.h"
 #include "dcmtk/dcmdata/dcuid.h"    /* for dcmtk version name */
 
 #define OFFIS_CONSOLE_APPLICATION "dcmftest+"
