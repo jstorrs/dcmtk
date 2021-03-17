@@ -229,6 +229,7 @@ int main(int argc, char *argv[])
   cmd.addParam("port", "tcp/ip port number to listen on", OFCmdParam::PM_Optional);
 
   cmd.setOptionColumns(LONGCOL, SHORTCOL);
+  ImageDir.addOptionGroup(cmd);
   cmd.addGroup("general options:", LONGCOL, SHORTCOL + 2);
     cmd.addOption("--help",                     "-h",      "print this help text and exit", OFCommandLine::AF_Exclusive);
     cmd.addOption("--version",                             "print version information and exit", OFCommandLine::AF_Exclusive);
@@ -315,7 +316,6 @@ int main(int argc, char *argv[])
   cmd.addGroup("output options:");
     cmd.addSubGroup("general:");
       cmd.addOption("--output-directory",       "-od",  1, "[d]irectory: string (default: \".\")", "write received objects to existing directory d");
-    ImageDir.addOptionSubGroup(cmd);
     cmd.addSubGroup("bit preserving mode:");
       cmd.addOption("--normal",                 "-B",      "allow implicit format conversions (default)");
       cmd.addOption("--bit-preserving",         "+B",      "write data exactly as read");

@@ -16,10 +16,11 @@ public:
   OFBool active = OFFalse;
 
   void
-  addOptionSubGroup(OFCommandLine &cmd)
+  addOptionGroup(OFCommandLine &cmd)
   {
-    cmd.addSubGroup("imagedir:");
-      cmd.addOption("--imagedir", "enable imagedir output mode");
+    cmd.addGroup("tweaks:");
+      cmd.addSubGroup("imagedir output:");
+        cmd.addOption("--imagedir", "enable imagedir output mode");
   }
 
   void
