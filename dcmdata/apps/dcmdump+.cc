@@ -80,7 +80,6 @@ static const DcmTagKey *printTagKeys[MAX_PRINT_TAG_NAMES];
 static OFCmdUnsignedInt maxReadLength = 4096; // default is 4 KB
 static size_t fileCounter = 0;
 
-
 static DcmTagKey parseTagKey(const char *tagName)
 {
     unsigned int group = 0xffff;
@@ -169,7 +168,8 @@ DCMTK_MAIN_FUNCTION
     cmd.setParamColumn(LONGCOL + SHORTCOL + 4);
 
     cmd.addParam("dcmfile-in", "DICOM input file or directory to be dumped", OFCmdParam::PM_MultiMandatory);
-
+    AddTweakDumpOptions(cmd);
+    
     cmd.addGroup("general options:", LONGCOL, SHORTCOL + 2);
       cmd.addOption("--help",                  "-h",     "print this help text and exit", OFCommandLine::AF_Exclusive);
       cmd.addOption("--version",                         "print version information and exit", OFCommandLine::AF_Exclusive);
@@ -834,8 +834,11 @@ static int dumpFile(STD_NAMESPACE ostream &out,
     /* dump complete file content */
     if (printTagCount == 0)
     {
-        // HOOK HERE //
-        dset->print(out, printFlags, 0 /*level*/, pixelFileName, &pixelCounter);
+        if (opt_tweak) {
+	    TweakDumpDataset(out, dset);
+	} else {
+	    dset->print(out, printFlags, 0 /*level*/, pixelFileName, &pixelCounter);
+	}
     } else {
         OFBool firstTag = OFTrue;
         /* only print specified tags */
