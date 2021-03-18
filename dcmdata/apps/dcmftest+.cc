@@ -111,21 +111,23 @@ int main(int argc, char *argv[])
     cmd.addParam("file", OFCmdParam::PM_MultiOptional);
     app.parseCommandLine(cmd, argc, argv);
 
+    if (isatty(STDIN_FILENO))
+      opt_stdin = OFFalse;
+    else
+      opt_stdin = OFTrue;
+
     if (cmd.findOption("--filter-dicom")) {
       opt_check = OFFalse;
       opt_filter_dicom = OFTrue;
-      opt_stdin = OFTrue;
       opt_quiet = OFTrue;
     }
     if (cmd.findOption("--filter-not-dicom")) {
       opt_check = OFFalse;
       opt_filter_notdicom = OFTrue;
-      opt_stdin = OFTrue;
       opt_quiet = OFTrue;
     }
     if (cmd.findOption("--quiet")) {
       opt_check = OFTrue;
-      opt_stdin = OFTrue;
       opt_quiet = OFTrue;
     }
     
