@@ -83,7 +83,7 @@ void processFile(const std::string fname)
       COUT << "yes: " << fname << OFendl;
     }
   } else {
-    badCount++;
+    badCount = 1;
     if (opt_filter_notdicom) {
       if (opt_filter_dicom) {
 	CERR << fname << OFendl;
