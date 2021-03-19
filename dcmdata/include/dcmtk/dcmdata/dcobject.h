@@ -41,6 +41,7 @@ class DcmOutputStream;
 class DcmInputStream;
 class DcmWriteCache;
 class DcmSpecificCharacterSet;
+class DcmList;
 
 // include this file in doxygen documentation
 
@@ -356,6 +357,12 @@ class DCMTK_DCMDATA_EXPORT DcmObject
      *  @return pointer to the parent item of this object (might be NULL)
      */
     virtual DcmItem *getParentItem();
+
+    /** get children of this object. If this object has not children,
+     *  NULL is returned.
+     *  @return pointer to the parent of this object (might be NULL)
+     */
+    virtual DcmList *getChildren();
 
     /** get parent of this object. If this object is an element that has been
      *  inserted into a dataset/item, the parent is this particular dataset/item.

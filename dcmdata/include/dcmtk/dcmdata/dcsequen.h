@@ -385,6 +385,12 @@ public:
      */
     virtual DcmItem *getItem(const unsigned long num);
 
+    /** get children of this object. If this object has not children,
+     *  NULL is returned.
+     *  @return pointer to the parent of this object (might be NULL)
+     */
+    virtual DcmList *getChildren();
+
     /** this method enables a stack based, depth-first traversal of a complete
      *  hierarchical DICOM dataset (that is, classes derived from DcmItem or
      *  DcmSequenceOfItems). With each call of this method, the next object
