@@ -168,7 +168,7 @@ DCMTK_MAIN_FUNCTION
     cmd.setParamColumn(LONGCOL + SHORTCOL + 4);
 
     cmd.addParam("dcmfile-in", "DICOM input file or directory to be dumped", OFCmdParam::PM_MultiMandatory);
-    AddTweakDumpOptions(cmd);
+    Tweak::addOptions(cmd);
     
     cmd.addGroup("general options:", LONGCOL, SHORTCOL + 2);
       cmd.addOption("--help",                  "-h",     "print this help text and exit", OFCommandLine::AF_Exclusive);
@@ -835,7 +835,7 @@ static int dumpFile(STD_NAMESPACE ostream &out,
     if (printTagCount == 0)
     {
         if (opt_tweak) {
-	    TweakDumpDataset(out, dset);
+	  Tweak::DumpDataset(dset, out, printFlags);
 	} else {
 	    dset->print(out, printFlags, 0 /*level*/, pixelFileName, &pixelCounter);
 	}

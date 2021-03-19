@@ -2,70 +2,100 @@
 
 OFBool opt_tweak = OFTrue;
 
-void
-AddTweakDumpOptions(OFCommandLine& cmd)
-{
-  cmd.addGroup("Tweaks:");
-    cmd.addOption("--tweak", "-T", "tweak");
-}
+namespace Tweak {
 
-void
-tweak_print_object(STD_NAMESPACE ostream &out,
-		   DcmObject *obj)
-{
-  DcmVR vr;
-  DcmTag tag = obj->getTag();
-  vr.setVR(obj->ident());
-  const char* authority = tag.getPrivateCreator();
-  authority = authority ? authority : "DICOM";
-  out << authority << '\t'
-      << tag << '\t'
-      << vr.getVRName() << '\t'
-      << obj->getVM() << '\t'
-      << tag.getTagName() << '\t';
-}
+  OFBool opt_skip_empty = OFTrue;
+  OFBool opt_skip_known_uid = OFFalse;
 
-
-class TweakItem : public DcmItem
-{
- public:
-  void tweak_print(STD_NAMESPACE ostream &out,
-		   const size_t flags,
-		   const int level,
-		   const char *pixelFileName,
-		   size_t *pixelCounter)
+  void
+  addOptions(OFCommandLine& cmd)
   {
-    Tweaks::PF_ValueOnly = OFTrue;
-    if (!elementList->empty())
+    cmd.addGroup("tweaks:");
+      cmd.addSubGroup("output:");
+        cmd.addOption("--tweak-print",          "-Tp", "print elements using tweaked format");
+        cmd.addOption("--tweak-skip-all",       "-Ta", "apply all skip rules");
+        cmd.addOption("--tweak-skip-empty",     "-Te", "don't print empty elements");
+        cmd.addOption("--tweak-skip-known-uid", "-Tu", "don't print defined UIDs");
+  }
+
+  OFBool
+  is_known_uid(DcmObject *obj)
+  {
+    char *stringVal = NULL;
+    Uint32 stringLen = 0;
+    const char *symbol = NULL;
+    
+    if (obj->ident() == DcmEVR::EVR_UI)
       {
-        DcmObject *dO;
-        elementList->seek(ELP_first);
-        do {
-	  dO = elementList->get();
-	  tweak_print_object(out,dO);
-	  dO->print(out, flags, level + 1, pixelFileName, pixelCounter);
-	  out << OFendl;
-        } while (elementList->seek(ELP_next));
+	static_cast<DcmUniqueIdentifier*>(obj)->getString(stringVal,stringLen);
+	if ((stringVal != NULL) && (stringLen > 0))
+	  symbol = dcmFindNameOfUID(stringVal);
+      }
+    return ((symbol != NULL) && (strlen(symbol) > 0));
+  }
+
+  // Forward Declaration
+  void DumpChildren(DcmObject* obj, STD_NAMESPACE ostream &out, const size_t flags);
+
+  
+  void
+  DumpObject(DcmObject* obj,
+	     STD_NAMESPACE ostream &out,
+	     const size_t flags)
+  {
+    DumpChildren(obj, out, flags);
+
+    if (opt_skip_empty && (obj->getVM() == 0))
+      return;
+    if (obj->ident() == DcmEVR::EVR_PixelData)
+      return;
+    // if (is_known_uid(obj))
+    //   return;
+  
+    DcmTag tag = obj->getTag();
+    DcmVR vr;
+    vr.setVR(obj->ident());
+    const char* authority = tag.getPrivateCreator();
+    authority = authority ? authority : "DICOM";
+    out << authority << '\t'
+	<< tag << '\t'
+	<< vr.getVRName() << '\t'
+	<< obj->getVM() << '\t'
+	<< tag.getTagName() << '\t';
+    obj->print(out, flags);
+    out << OFendl;
+  }
+
+
+  void
+  DumpChildren(DcmObject* obj,
+	   STD_NAMESPACE ostream &out,
+	   const size_t flags)
+  {
+    DcmList* list = obj->getChildren();
+    if (list && !list->empty())
+      {
+	DcmObject *obj;
+	list->seek(ELP_first);
+	do {
+	  obj = list->get();
+	  DumpObject(obj, out, flags);
+	} while (list->seek(ELP_next));
       }
   }
-};
 
-#define TweakItem_(x) static_cast<TweakItem*>(static_cast<DcmItem*>(x))
 
-void
-TweakDumpDataset(STD_NAMESPACE ostream &out,
-		 DcmObject* dset,
-		 const size_t flags = 0,
-		 const int level = 0,
-		 const char *pixelFileName = NULL,
-		 size_t *pixelCounter = NULL)
-{
-  DcmFileFormat* dfile = static_cast<DcmFileFormat*>(dset);
-  TweakItem* meta = TweakItem_(dfile->getMetaInfo());
-  TweakItem* data = TweakItem_(dfile->getDataset());
+  void
+  DumpDataset(DcmObject* dset,
+	      STD_NAMESPACE ostream &out,
+	      const size_t flags = 0)
+  {
+    Tweaks::PF_ValueOnly = OFTrue;
+    DcmFileFormat* dfile = static_cast<DcmFileFormat*>(dset);
+    DumpChildren(dfile->getMetaInfo(), out, flags);
+    DumpChildren(dfile->getDataset(), out, flags);
+  }
 
-  meta->tweak_print(out,flags,level,pixelFileName,pixelCounter);
-  data->tweak_print(out,flags,level,pixelFileName,pixelCounter);
+  
 }
 
-#undef TweakItem_
