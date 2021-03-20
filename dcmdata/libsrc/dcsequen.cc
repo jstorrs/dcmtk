@@ -41,6 +41,7 @@
 #include "dcmtk/dcmdata/dcdeftag.h"
 #include "dcmtk/dcmdata/dcistrma.h"    /* for class DcmInputStream */
 #include "dcmtk/dcmdata/dcostrma.h"    /* for class DcmOutputStream */
+#include "dcmtk/dcmdata/tweaks.h"
 
 
 DcmSequenceOfItems::DcmSequenceOfItems(const DcmTag &tag)
@@ -304,6 +305,8 @@ void DcmSequenceOfItems::print(STD_NAMESPACE ostream &out,
         OFSTRINGSTREAM_GETSTR(oss, tmpString)
         printInfoLine(out, flags, level, tmpString);
         OFSTRINGSTREAM_FREESTR(tmpString)
+	if (Tweaks::PF_ValueOnly) return;
+
         /* print sequence content */
         if (!itemList->empty())
         {

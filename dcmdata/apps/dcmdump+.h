@@ -36,24 +36,49 @@ namespace Tweak {
 
 
   void
-  DumpObject(DcmObject* obj,
+  DumpPath(const DcmStack& stack,
+	   STD_NAMESPACE ostream &out)
+  {
+    for (int i = stack.card()-1; i>=0; i--)
+      {
+	DcmObject* obj = stack.elem(i);
+	switch (obj->ident())
+	  {
+	  case EVR_metainfo:
+	  case EVR_dataset:
+	  case EVR_item:
+	  case EVR_dirRecord:
+	    break;
+	  default:
+	    out << obj->getTag();
+	  }
+      }
+  }
+
+  
+  void
+  DumpObject(const DcmStack& stack,
 	     STD_NAMESPACE ostream &out,
 	     const size_t flags)
   {
+    DcmObject* obj = stack.top();
+    if (obj->ident() == DcmEVR::EVR_item)
+      return;
     if (opt_skip_empty && (obj->getVM() == 0))
       return;
     if (obj->ident() == DcmEVR::EVR_PixelData)
       return;
-    if (isKnownUID(obj))
+    if (opt_skip_known_uid && isKnownUID(obj))
       return;
-  
+    
     DcmTag tag = obj->getTag();
     DcmVR vr;
     vr.setVR(obj->ident());
     const char* authority = tag.getPrivateCreator();
     authority = authority ? authority : "DICOM";
-    out << authority << '\t'
-	<< tag << '\t'
+    out << authority << '\t';
+    DumpPath(stack,out);
+    out << '\t'
 	<< vr.getVRName() << '\t'
 	<< obj->getVM() << '\t'
 	<< tag.getTagName() << '\t';
@@ -69,7 +94,7 @@ namespace Tweak {
   {
     DcmStack stack;
     while (obj->nextObject(stack, OFTrue).good()) {
-      DumpObject(stack.top(), out, flags);
+      DumpObject(stack, out, flags);
     }
   }
   
