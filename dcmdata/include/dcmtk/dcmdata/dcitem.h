@@ -211,12 +211,6 @@ class DCMTK_DCMDATA_EXPORT DcmItem
      */
     virtual DcmItem *getParentItem();
 
-    /** get children of this object. If this object has not children,
-     *  NULL is returned.
-     *  @return pointer to the parent of this object (might be NULL)
-     */
-    virtual DcmList *getChildren();
-
     /** check if this DICOM object can be encoded in the given transfer syntax.
      *  @param newXfer transfer syntax in which the DICOM object is to be encoded
      *  @param oldXfer transfer syntax in which the DICOM object was read or created.

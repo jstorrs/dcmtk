@@ -1723,12 +1723,6 @@ DcmItem *DcmItem::getParentItem()
 }
 
 
-DcmList* DcmItem::getChildren()
-{
-    return elementList;
-}
-
-
 // ********************************
 
 

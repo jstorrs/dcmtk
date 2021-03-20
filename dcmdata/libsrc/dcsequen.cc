@@ -1146,15 +1146,6 @@ DcmItem* DcmSequenceOfItems::getItem(const unsigned long num)
 // ********************************
 
 
-DcmList* DcmSequenceOfItems::getChildren()
-{
-    return itemList;
-}
-
-
-// ********************************
-
-
 DcmObject *DcmSequenceOfItems::nextInContainer(const DcmObject *obj)
 {
     if (!obj)

@@ -19,7 +19,7 @@ namespace Tweak {
   }
 
   OFBool
-  is_known_uid(DcmObject *obj)
+  isKnownUID(DcmObject *obj)
   {
     char *stringVal = NULL;
     Uint32 stringLen = 0;
@@ -34,23 +34,18 @@ namespace Tweak {
     return ((symbol != NULL) && (strlen(symbol) > 0));
   }
 
-  // Forward Declaration
-  void DumpChildren(DcmObject* obj, STD_NAMESPACE ostream &out, const size_t flags);
 
-  
   void
   DumpObject(DcmObject* obj,
 	     STD_NAMESPACE ostream &out,
 	     const size_t flags)
   {
-    DumpChildren(obj, out, flags);
-
     if (opt_skip_empty && (obj->getVM() == 0))
       return;
     if (obj->ident() == DcmEVR::EVR_PixelData)
       return;
-    // if (is_known_uid(obj))
-    //   return;
+    if (isKnownUID(obj))
+      return;
   
     DcmTag tag = obj->getTag();
     DcmVR vr;
@@ -69,22 +64,16 @@ namespace Tweak {
 
   void
   DumpChildren(DcmObject* obj,
-	   STD_NAMESPACE ostream &out,
-	   const size_t flags)
+	       STD_NAMESPACE ostream &out,
+	       const size_t flags)
   {
-    DcmList* list = obj->getChildren();
-    if (list && !list->empty())
-      {
-	DcmObject *obj;
-	list->seek(ELP_first);
-	do {
-	  obj = list->get();
-	  DumpObject(obj, out, flags);
-	} while (list->seek(ELP_next));
-      }
+    DcmStack stack;
+    while (obj->nextObject(stack, OFTrue).good()) {
+      DumpObject(stack.top(), out, flags);
+    }
   }
-
-
+  
+  
   void
   DumpDataset(DcmObject* dset,
 	      STD_NAMESPACE ostream &out,

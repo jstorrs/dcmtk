@@ -209,12 +209,6 @@ DcmItem *DcmObject::getParentItem()
 }
 
 
-DcmList *DcmObject::getChildren()
-{
-    return NULL;
-}
-
-
 // ********************************
 
 
