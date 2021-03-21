@@ -321,6 +321,9 @@ DCMTK_MAIN_FUNCTION
       /* general options */
       OFLog::configureFromCommandLine(cmd, app);
 
+      /* Tweak options */
+      Tweak::configureFromCommandLine(cmd, app);
+      
       /* input options */
       cmd.beginOptionBlock();
       if (cmd.findOption("--read-file")) readMode = ERM_autoDetect;
@@ -834,8 +837,8 @@ static int dumpFile(STD_NAMESPACE ostream &out,
     /* dump complete file content */
     if (printTagCount == 0)
     {
-        if (opt_tweak) {
-	  Tweak::DumpDataset(dset, out, printFlags);
+        if (Tweak::opt_print) {
+	  Tweak::DumpDataset(dset, ifname, out, printFlags);
 	} else {
 	    dset->print(out, printFlags, 0 /*level*/, pixelFileName, &pixelCounter);
 	}
