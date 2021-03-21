@@ -167,7 +167,7 @@ DCMTK_MAIN_FUNCTION
     cmd.setOptionColumns(LONGCOL, SHORTCOL);
     cmd.setParamColumn(LONGCOL + SHORTCOL + 4);
 
-    cmd.addParam("dcmfile-in", "DICOM input file or directory to be dumped", OFCmdParam::PM_MultiMandatory);
+    cmd.addParam("dcmfile-in", "DICOM input file or directory to be dumped", OFCmdParam::PM_MultiOptional);
     Tweak::addOptions(cmd);
     
     cmd.addGroup("general options:", LONGCOL, SHORTCOL + 2);
@@ -703,7 +703,7 @@ DCMTK_MAIN_FUNCTION
         inputFiles.push_back(paramValue);
     }
     /* check whether there are any input files at all */
-    if (inputFiles.empty())
+    if (inputFiles.empty() && !Tweak::opt_stdin)
     {
       OFLOG_FATAL(dcmdumpLogger, "no input files to be dumped");
       return 1;
@@ -728,6 +728,18 @@ DCMTK_MAIN_FUNCTION
       errorCount += dumpFile(COUT, current, readMode, xfer, printFlags, loadIntoMemory, stopOnErrors, convertToUTF8, stopParsingBeforeElement, pixelDirectory);
     }
 
+    if (Tweak::opt_stdin)
+      {
+	std::string fname;
+	while(std::cin) {
+	  getline(std::cin, fname);
+	  if (fname.length() > 0) {
+	    current = fname.c_str();
+	    errorCount += dumpFile(COUT, current, readMode, xfer, printFlags, loadIntoMemory, stopOnErrors, convertToUTF8, stopParsingBeforeElement, pixelDirectory);
+	  }
+	}
+      }
+    
     return errorCount;
 }
 

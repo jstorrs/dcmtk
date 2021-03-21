@@ -2,6 +2,7 @@
 
 namespace Tweak {
 
+  OFBool opt_stdin = OFFalse;
   OFBool opt_print = OFFalse;
   OFBool opt_print_empty = OFFalse;
   OFBool opt_print_filenames = OFFalse;
@@ -31,6 +32,11 @@ namespace Tweak {
       opt_print_empty = OFTrue;
       opt_print_known_uid = OFTrue;
     }
+
+    if (isatty(STDIN_FILENO))
+      opt_stdin = OFFalse;
+    else
+      opt_stdin = OFTrue;
   }
 
   
