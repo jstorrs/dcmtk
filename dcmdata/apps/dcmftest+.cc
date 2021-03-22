@@ -40,10 +40,10 @@ static char rcsid[] = "$dcmtk: " OFFIS_CONSOLE_APPLICATION " v"
 // ********************************************
 
 OFBool opt_check = OFTrue ;
-OFBool opt_filter_dicom = OFFalse ;
+OFBool opt_filter_dicom = OFTrue ;
 OFBool opt_filter_notdicom = OFFalse ;
 OFBool opt_stdin = OFFalse ;
-OFBool opt_quiet = OFFalse;
+OFBool opt_quiet = OFTrue ;
 
 int badCount = 0;
 
@@ -103,10 +103,8 @@ int main(int argc, char *argv[])
 
     /* evaluate command line */
     cmd.addSubGroup("tweaks:");
-      cmd.addOption("--filter-dicom", "-f", "print if DICOM");
-      cmd.addOption("--filter-not-dicom", "-v", 0, "print if not DICOM",
-		    "prints on stdout if --filter-dicom is also active");
-      cmd.addOption("--quiet", "-q", "suppress output");
+    cmd.addOption("--invert-match", "-v", "list non-DICOM input");
+    cmd.addOption("--split", "-t", "list DICOM on stdout, non-DICOM on stderr");
 
     cmd.addParam("file", OFCmdParam::PM_MultiOptional);
     app.parseCommandLine(cmd, argc, argv);
@@ -115,21 +113,17 @@ int main(int argc, char *argv[])
       opt_stdin = OFFalse;
     else
       opt_stdin = OFTrue;
-
-    if (cmd.findOption("--filter-dicom")) {
-      opt_check = OFFalse;
-      opt_filter_dicom = OFTrue;
-      opt_quiet = OFTrue;
-    }
-    if (cmd.findOption("--filter-not-dicom")) {
-      opt_check = OFFalse;
+    
+    if (cmd.findOption("--invert-match")) {
+      opt_filter_dicom = OFFalse;
       opt_filter_notdicom = OFTrue;
-      opt_quiet = OFTrue;
     }
-    if (cmd.findOption("--quiet")) {
-      opt_check = OFTrue;
-      opt_quiet = OFTrue;
+
+    if (cmd.findOption("--split")) {
+      opt_filter_dicom = OFTrue;
+      opt_filter_notdicom = OFTrue;
     }
+
     
     int count = cmd.getParamCount();
     if (count==0 && !opt_stdin)

@@ -3,7 +3,7 @@
 namespace Tweak {
 
   OFBool opt_stdin = OFFalse;
-  OFBool opt_print = OFFalse;
+  OFBool opt_print = OFTrue;
   OFBool opt_print_empty = OFFalse;
   OFBool opt_print_filenames = OFFalse;
   OFBool opt_print_known_uid = OFFalse;
@@ -15,21 +15,26 @@ namespace Tweak {
   {
     cmd.addGroup("tweaks:");
       cmd.addSubGroup("output:");
-        cmd.addOption("--tweak-print",           "-Tp", "print elements using tweaked format");
-        cmd.addOption("--tweak-print-filenames", "-Tf", "print filemanes");
-        cmd.addOption("--tweak-print-all",       "-Ta", "don't skip empty elements and known UIDs");
+        cmd.addOption("--print-with-filename", "-H", "print filenames");
+        cmd.addOption("--print-empty",         "-e", "print empty elements");
+	cmd.addOption("--print-known-uid",     "-k", "print known UIDs");
+	cmd.addOption("--print-all",           "-a", "print empty elements and known UIDs");
   }
 
 
   void
   configureFromCommandLine(OFCommandLine& cmd, OFConsoleApplication& app)
   {
-    if (cmd.findOption("--tweak-print"))
-      opt_print = OFTrue;
-    if (cmd.findOption("--tweak-print-filenames"))
+    if (cmd.findOption("--print-with-filename"))
       opt_print_filenames = OFTrue;
-    if (cmd.findOption("--tweak-print-all")) {
+    if (cmd.findOption("--print-all")) {
       opt_print_empty = OFTrue;
+      opt_print_known_uid = OFTrue;
+    }
+    if (cmd.findOption("--print-empty")) {
+      opt_print_empty = OFTrue;
+    }
+    if (cmd.findOption("--print-known-uid")) {
       opt_print_known_uid = OFTrue;
     }
 
