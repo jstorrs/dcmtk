@@ -5,6 +5,7 @@ private:
 
   int serialCounter = 0;
   OFString targetAETitle = "";
+  OFString sourceAETitle = "";
   OFString tmpFileName = "";
   OFString newFileName = "";
   OFString tmpDir = "";
@@ -54,11 +55,11 @@ public:
   }
   
   void
-  setCalledAETitle(const DIC_AE calledTitle)
+  setAETitle(OFString& dest, const DIC_AE aetitle)
   {
-    OFString tempAETitle = OFSTRING_GUARD(calledTitle);
+    OFString tempAETitle = OFSTRING_GUARD(aetitle);
     OFString::iterator it, itA, itZ;
-    targetAETitle.clear();
+    dest.clear();
     itA = tempAETitle.begin();
     itZ = tempAETitle.end();
     for ( ; itA < itZ; itA++)
@@ -67,11 +68,18 @@ public:
       if (isgraph(*itZ)) break ;
     for (it = itA; it <= itZ; it++) {
       if (isalnum(*it) || (*it == '-') || (*it == '.')) {
-	targetAETitle += *it;
+	dest += *it;
       } else {
-	targetAETitle += "_";
+	dest += "_";
       }
     }
+  }
+
+  void
+  setAETitles(const DIC_AE callingTitle, const DIC_AE calledTitle)
+  {
+    setAETitle(sourceAETitle, callingTitle);
+    setAETitle(targetAETitle, calledTitle);
     OFStandard::combineDirAndFilename(tmpDir,root,"tmp");
     OFStandard::combineDirAndFilename(newDir,root,targetAETitle);
     if (!isValidDestination(newDir))
@@ -80,17 +88,24 @@ public:
   
   void
   generateFileNames(const T_DIMSE_C_StoreRQ *req) {
-    // [Called AETitle].[YYYYMMDDHHMMSSMMM].[PID].[COUNTER].MODALITY.dcm
-    char imageFileName[NAME_MAX] = "";
+    // tmp/[Called AETitle].[Calling AETitle].[YYYYMMDDHHMMSSMMM].[PID].[COUNTER].[MODALITY].dcm
+    // [Called AETitle]/[Calling AETitle].[YYYYMMDDHHMMSSMMM].[PID].[COUNTER].[MODALITY].dcm
+
+    char stemName[NAME_MAX] = "";
+    char fileName[NAME_MAX] = "";
+
     OFDateTime dateTime;
     dateTime.setCurrentDateTime();
-    snprintf(imageFileName, NAME_MAX, "%s.%04u%02u%02u%02u%02u%02u%03u.%d.%06d.%s.dcm",
-	     targetAETitle.c_str(),
+    snprintf(stemName, NAME_MAX, "%04u%02u%02u%02u%02u%02u%03u.%d.%06d.%s.dcm",
 	     dateTime.getDate().getYear(), dateTime.getDate().getMonth(), dateTime.getDate().getDay(),
 	     dateTime.getTime().getHour(), dateTime.getTime().getMinute(),dateTime.getTime().getIntSecond(), dateTime.getTime().getMilliSecond(),
 	     getpid(), serialCounter++, dcmSOPClassUIDToModality(req->AffectedSOPClassUID, "UNKNOWN"));
-    OFStandard::combineDirAndFilename(tmpFileName,tmpDir,imageFileName);
-    OFStandard::combineDirAndFilename(newFileName,newDir,imageFileName);
+    
+    snprintf(fileName, NAME_MAX, "%s.%s.%s", targetAETitle.c_str(), sourceAETitle.c_str(), stemName);
+    OFStandard::combineDirAndFilename(tmpFileName,tmpDir,fileName);
+
+    snprintf(fileName, NAME_MAX, "%s.%s", sourceAETitle.c_str(), stemName);
+    OFStandard::combineDirAndFilename(newFileName,newDir,fileName);
   }
 
   void

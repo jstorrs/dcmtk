@@ -1478,7 +1478,7 @@ static OFCondition acceptAssociation(T_ASC_Network *net, DcmAssociationConfigura
     calledAETitle += OFSTRING_GUARD(calledTitle);
     calledAETitle += "\"";
 
-    ImageDir.setCalledAETitle(calledTitle);
+    ImageDir.setAETitles(callingTitle,calledTitle);
   }
   else
   {
