@@ -120,8 +120,8 @@ namespace Tweak {
     DumpTagPath(stack,out);
     out << field_sep
 	<< vr.getVRName() << field_sep
-	<< obj->getVM() << field_sep
-	<< tag.getTagName() << field_sep;
+	<< tag.getTagName() << field_sep
+	<< obj->getVM() << field_sep;
     obj->print(out, flags);
     out << OFendl;
   }
