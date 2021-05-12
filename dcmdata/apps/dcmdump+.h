@@ -8,6 +8,7 @@ namespace Tweak {
   OFBool opt_print_filenames = OFFalse;
   OFBool opt_print_known_uid = OFFalse;
   OFBool opt_print_tag_heirarchy = OFTrue;
+  const char* opt_skip_UID = NULL;
   char field_sep[] = "\t";
   
   void
@@ -15,10 +16,12 @@ namespace Tweak {
   {
     cmd.addGroup("tweaks:");
       cmd.addSubGroup("output:");
-        cmd.addOption("--print-with-filename", "-H", "print filenames");
-        cmd.addOption("--print-empty",         "-e", "print empty elements");
-	cmd.addOption("--print-known-uid",     "-k", "print known UIDs");
-	cmd.addOption("--print-all",           "-a", "print empty elements and known UIDs");
+        cmd.addOption("--print-with-filename", "-H",    "print filenames");
+        cmd.addOption("--print-empty",         "-e",    "print empty elements");
+	cmd.addOption("--print-known-uid",     "-k",    "print known UIDs");
+	cmd.addOption("--print-all",           "-a",    "print empty elements and known UIDs");
+	cmd.addOption("--skip-uid",            "-U", 1, "[U]ID prefix",
+		                                        "don't print UIDs that begin with U");
   }
 
 
@@ -37,7 +40,9 @@ namespace Tweak {
     if (cmd.findOption("--print-known-uid")) {
       opt_print_known_uid = OFTrue;
     }
-
+    if (cmd.findOption("--skip-uid")) {
+      cmd.getValue(opt_skip_UID);
+    }
     if (isatty(STDIN_FILENO))
       opt_stdin = OFFalse;
     else
@@ -50,15 +55,20 @@ namespace Tweak {
   {
     char *stringVal = NULL;
     Uint32 stringLen = 0;
-    const char *symbol = NULL;
+    OFBool retval = OFFalse;
 
     if (obj->ident() == DcmEVR::EVR_UI)
       {
 	static_cast<DcmUniqueIdentifier*>(obj)->getString(stringVal,stringLen);
-	if ((stringVal != NULL) && (stringLen > 0))
-	  symbol = dcmFindNameOfUID(stringVal);
+	if ((stringVal != NULL) && (stringLen > 0)) {
+	  const char *symbol = dcmFindNameOfUID(stringVal);
+	  if ((symbol != NULL) && (strlen(symbol) > 0))
+	    retval = OFTrue;
+	  if ((opt_skip_UID != NULL) && (strncmp(stringVal, opt_skip_UID, strlen(opt_skip_UID)) == 0))
+	    retval = OFTrue;
+	}
       }
-    return ((symbol != NULL) && (strlen(symbol) > 0));
+    return retval;
   }
 
 
