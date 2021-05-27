@@ -102,6 +102,7 @@ namespace Tweak {
 	     STD_NAMESPACE ostream &out,
 	     const size_t flags)
   {
+    Tweaks::PF_ValueOnly = OFTrue;
     DcmObject* obj = stack.top();
     switch (obj->ident())
       {

@@ -80,6 +80,7 @@ static const DcmTagKey *printTagKeys[MAX_PRINT_TAG_NAMES];
 static OFCmdUnsignedInt maxReadLength = 4096; // default is 4 KB
 static size_t fileCounter = 0;
 
+
 static DcmTagKey parseTagKey(const char *tagName)
 {
     unsigned int group = 0xffff;
@@ -876,6 +877,9 @@ static int dumpFile(STD_NAMESPACE ostream &out,
             DcmStack stack;
             if (dset->search(searchKey, stack, ESM_fromHere, OFTrue) == EC_Normal)
             {
+		if (Tweak::opt_print) {
+		  Tweak::DumpObject(stack, ifname, out, printFlags);
+		} else {
                 if (firstTag)
                 {
                     if (!printFilename)
@@ -896,6 +900,7 @@ static int dumpFile(STD_NAMESPACE ostream &out,
                       printResult(out, stack, printFlags, pixelFileName, &pixelCounter);
                 }
             }
+	    }
         }
     }
     return result;
