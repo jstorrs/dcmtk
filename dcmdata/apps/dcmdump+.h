@@ -57,7 +57,7 @@ namespace Tweak {
     Uint32 stringLen = 0;
     OFBool retval = OFFalse;
 
-    if (obj->ident() == DcmEVR::EVR_UI)
+    if (obj->ident() == EVR_UI)
       {
 	static_cast<DcmUniqueIdentifier*>(obj)->getString(stringVal,stringLen);
 	if ((stringVal != NULL) && (stringLen > 0)) {
@@ -110,12 +110,13 @@ namespace Tweak {
       case EVR_dataset:
       case EVR_item:
       case EVR_dirRecord:
-	return;
       case EVR_PixelData:
-	return;
+	      return;
       case EVR_UI:
-	if (!opt_print_known_uid && isKnownUID(obj))
-	  return;
+	      if (!opt_print_known_uid && isKnownUID(obj))
+	        return;
+      default:
+        break;
       }
     if (!opt_print_empty && (obj->getVM() == 0))
       return;

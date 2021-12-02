@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2018, OFFIS e.V.
+ *  Copyright (C) 1994-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -30,8 +30,8 @@
 #include "dcmtk/dcmdata/dcistrmz.h"   /* for dcmZlibExpectRFC1950Encoding */
 #include "dcmdump+.h"
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTRING
+#include <cstdlib>
+#include <cstring>
 #include "dcmtk/ofstd/ofstdinc.h"
 
 #ifdef WITH_ZLIB

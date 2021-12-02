@@ -3,18 +3,18 @@ class ImageDirManager
 
 private:
 
-  int serialCounter = 0;
-  OFString targetAETitle = "";
-  OFString sourceAETitle = "";
-  OFString tmpFileName = "";
-  OFString newFileName = "";
-  OFString tmpDir = "";
-  OFString newDir = "";
-  OFString root = "";
+  int serialCounter;
+  OFString targetAETitle;
+  OFString sourceAETitle;
+  OFString tmpFileName;
+  OFString newFileName;
+  OFString tmpDir;
+  OFString newDir;
+  OFString root;
   
 public:
 
-  OFBool active = OFFalse;
+  OFBool active;
 
   void
   addOptionGroup(OFCommandLine &cmd)
@@ -123,5 +123,16 @@ public:
   {
     return (OFStandard::dirExists(dir) && OFStandard::isWriteable(dir));
   }
+
+  ImageDirManager() : 
+    serialCounter(0),
+    targetAETitle(""),
+    sourceAETitle(""),
+    tmpFileName(""),
+    newFileName(""),
+    tmpDir(""),
+    newDir(""),
+    root(""),
+    active(OFFalse) { }
 
 };

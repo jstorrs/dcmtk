@@ -21,11 +21,11 @@
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTRING
-#define INCLUDE_CSTDARG
-#define INCLUDE_CCTYPE
-#define INCLUDE_CSIGNAL
+#include <cstdlib>
+#include <cstring>
+#include <cstdarg>
+#include <cctype>
+#include <csignal>
 #include "dcmtk/ofstd/ofstdinc.h"
 
 BEGIN_EXTERN_C

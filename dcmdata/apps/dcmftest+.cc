@@ -21,11 +21,11 @@
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_LIBC
-#define INCLUDE_UNISTD
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <libc.h>
+#include <unistd.h>
 #include "dcmtk/ofstd/ofstdinc.h"
 
 #include "dcmtk/dcmdata/dcmetinf.h"
