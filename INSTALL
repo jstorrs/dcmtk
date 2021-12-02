@@ -31,22 +31,14 @@ The DCMTK software can be compiled under a native Microsoft Windows environment
 The current (minor) release successfully compiles on the following operating
 system / hardware / compiler combinations:
 
-   Windows 7       / Intel x86    / Microsoft Visual C++ 2010 Express (VS 10)
    Windows 7       / Intel x86    / Microsoft Visual C++ 2015 Community (VS 14)
-   Windows 7       / amd64|x86_64 / Microsoft Visual C++ 2010 Express (VS 10)
    Windows 7       / amd64|x86_64 / Microsoft Visual C++ 2015 Community (VS 14)
-   Windows 10      / Intel x86    / Microsoft Visual C++ 2008 Express (VS 9)
-   Windows 10      / Intel x86    / Microsoft Visual C++ 2010 Express (VS 10)
-   Windows 10      / Intel x86    / Microsoft Visual C++ 2012 Express (VS 11)
-   Windows 10      / Intel x86    / Microsoft Visual C++ 2013 Express (VS 12)
    Windows 10      / Intel x86    / Microsoft Visual C++ 2015 Community (VS 14)
    Windows 10      / Intel x86    / Microsoft Visual C++ 2017 Community (VS 15)
    Windows 10      / Intel x86    / Microsoft Visual C++ 2019 Community (VS 16)
    Windows 10      / Intel x86    / MinGW gcc 9.2.0 (i686-w64-mingw32)
    Windows 10      / Intel x86    / MinGW gcc 10.2.0 (i686-w64-mingw32)
    Windows 10      / Intel x86    / MinGW Clang 10.0.1 (i686-w64-mingw32)
-   Windows 10      / amd64|x86_64 / Microsoft Visual C++ 2012 Express (VS 11)
-   Windows 10      / amd64|x86_64 / Microsoft Visual C++ 2013 Express (VS 12)
    Windows 10      / amd64|x86_64 / Microsoft Visual C++ 2015 Community (VS 14)
    Windows 10      / amd64|x86_64 / Microsoft Visual C++ 2017 Community (VS 15)
    Windows 10      / amd64|x86_64 / Microsoft Visual C++ 2019 Community (VS 16)
@@ -97,8 +89,9 @@ given below:
 Cross Compiling
 ---------------
 
-The current DCMTK release can be cross-compiled targeting the following
-platforms:
+For target platforms other than Android, see section "CROSS COMPILING WITH CMAKE"
+below. For Android, the current DCMTK release can be cross-compiled targeting the
+following platform:
 
    Android         / arm64        / GNU gcc 8.3.0     (API 24, ABI arm64-v8a)
 
@@ -110,6 +103,18 @@ that is being regularly tested.
 
 Other Platforms
 ---------------
+
+The previous minor release DCMTK 3.6.6 was also tested on the following
+platforms that may still work, but were not tested again for this minor release:
+
+   Windows 7       / Intel x86    / Microsoft Visual C++ 2010 Express (VS 10)
+   Windows 7       / amd64|x86_64 / Microsoft Visual C++ 2010 Express (VS 10)
+   Windows 10      / Intel x86    / Microsoft Visual C++ 2008 Express (VS 9)
+   Windows 10      / Intel x86    / Microsoft Visual C++ 2010 Express (VS 10)
+   Windows 10      / Intel x86    / Microsoft Visual C++ 2012 Express (VS 11)
+   Windows 10      / Intel x86    / Microsoft Visual C++ 2013 Express (VS 12)
+   Windows 10      / amd64|x86_64 / Microsoft Visual C++ 2012 Express (VS 11)
+   Windows 10      / amd64|x86_64 / Microsoft Visual C++ 2013 Express (VS 12)
 
 The previous minor release DCMTK 3.6.5 was also tested on the following
 platforms that may still work, but were not tested again for this minor release:
@@ -209,6 +214,23 @@ compilation of DCMTK.  By default, DCMTK checks whether OpenSSL is installed
 and enables support automatically if present.  By default, DCMTK checks the
 standard paths on Unix platforms.  For Windows platforms, check the discussion
 on CMake below.
+
+Known Issues
+------------
+
+The ABI of various DCMTK libraries changes when DCMTK is build with/without
+OpenSSL. This may result in hard to debug bugs e.g. when using the command line
+tools that depend on at least one of those libraries while mixing a non OpenSSL
+build with an OpenSSL enabled build of DCMTK (for example when installing an
+OpenSSL enabled DCMTK on top of a DCMTK installation without OpenSSL support).
+We have introduced a CMake variable called DCMTK_TLS_LIBRARY_POSTFIX as a
+workaround. If you plan on mixing OpenSSL and non OpenSSL enabled builds (or
+can't be sure that your builds wont be mixed by somebody else), we suggest
+setting DCMTK_TLS_LIBRARY_POSTFIX to some different string for the different
+builds (e.g. an empty string for the non OpenSSL build and "-openssl" for the
+other). This way, all affected libraries will be named including the chosen
+postfix, effectively preventing the unintended mixing and, therefore,
+preventing the bugs.
 
 
 ZLIB SUPPORT
@@ -663,14 +685,6 @@ Known limitations of DCMTK on the Windows platform.
 
 1. The dcmqrscp tool cannot spark multiple processes.  Every association must
    be handled completely before a new association is possible.
-2. Visual C++ contains two different implementations of I/O streams which
-   should never be mixed within one application because this may cause
-   application errors that are hard to find.  The old, now deprecated
-   implementation uses the traditional cfront header files <iostream.h> etc.
-   The new implementation uses <iostream> etc. as defined in ANSI/ISO C++.
-   DCMTK can be configured to use either of the two interfaces.  This behavior
-   can be changed in "config/include/dcmtk/config/osconfig.h" in the build
-   directory where the symbol USE_STD_CXX_INCLUDES is declared.
 
 
 Unix with CMake
@@ -738,8 +752,9 @@ variables are:
       Default: OFF.
     - CMAKE_BUILD_TYPE: Debug or Release build, default: Release.
     - CMAKE_INSTALL_PREFIX: Installation prefix, default: /usr/local.
-    - DCMTK_ENABLE_BUILTIN_DICTIONARY: Activate the built-in DICOM data
-      dictionary? Default: ON on Windows, OFF on Linux/Posix.
+    - DCMTK_DEFAULT_DICT: Activate the builtin, external or no DICOM data
+      dictionary on DCMTK startup? Default: builtin on Windows, external on
+      Linux/Posix.
     - DCMTK_ENABLE_CXX11: Assume the compiler is C++11 compliant. Default: OFF.
     - DCMTK_ENABLE_STL: Replace DCMTK's OFString, OFList, OFVector etc. by
       the STL classes std::string, std::list, std::vector etc. Default: OFF.
@@ -825,6 +840,68 @@ will build the test runner for each module as "<module>/tests/tests".  CMake
 will add the module name as a prefix to this file's name, e.g. "ofstd_tests".
 For more information, call this program with the --help option.
 
+CROSS COMPILING WITH CMAKE
+==========================
+
+The main challenge when cross-compiling DCMTK is that some of the feature tests
+performed by CMake require certain small test programs to be compiled and run,
+which does not work in a cross-compilation setting. Starting with DCMTK 3.6.7,
+basic support for cross-compilation has been added. This can be enabled by setting
+the CMake variable DCMTK_NO_TRY_RUN:
+
+  cmake -DDCMTK_NO_TRY_RUN:BOOL=TRUE
+
+In this case, CMake expects all test results that are normally achieved by
+executing certain test programs to be provided by the user on the command line.
+In detail, these are the variables that need to be provided:
+
+  - C_CHAR_UNSIGNED: TRUE if the "char" type in C is unsigned, FALSE if signed
+
+  The following variables are only used when compiling with libiconv support
+  and can otherwise be set to default values:
+  - DCMTK_ICONV_FLAGS_ANALYZED: should always be set to TRUE
+  - DCMTK_FIXED_ICONV_CONVERSION_FLAGS: The output printed by the test program
+    config/tests/iconv.cc, when run on the target platform. This value is only
+    used when compiling with old libiconv versions (older than libiconv 1.8)
+    and determines the iconv behaviour when encountering illegal byte sequences
+    during a character set conversion. Possible values are:
+    - "AbortTranscodingOnIllegalSequence" (use as default)
+    - "DiscardIllegalSequences"
+  - DCMTK_STDLIBC_ICONV_HAS_DEFAULT_ENCODING: true if the test program
+    config/tests/lciconv.cc exits with a return code of zero, false otherwise.
+    This test determines if libiconv has a default encoding, i.e. if
+    iconv_open() accepts "" as an argument. Use FALSE as default.
+
+  The following variables are only used when compiling with DCMTK_ENABLE_STL
+  and can otherwise be set to 0:
+  - HAVE_STL_VECTOR_TEST_RESULT: 1 if the platform provides a working
+    <vector> implementation, 0 otherwise
+  - HAVE_STL_ALGORITHM_TEST_RESULT: 1 if the platform provides a working
+    <algorithm> implementation, 0 otherwise
+  - HAVE_STL_LIMITS_TEST_RESULT: 1 if the platform provides a working
+    <limits> implementation, 0 otherwise
+  - HAVE_STL_LIST_TEST_RESULT: 1 if the platform provides a working
+    <list> implementation, 0 otherwise
+  - HAVE_STL_MAP_TEST_RESULT: 1 if the platform provides a working
+    <map> implementation, 0 otherwise
+  - HAVE_STL_MEMORY_TEST_RESULT: 1 if the platform provides a working
+    <memory> implementation, 0 otherwise
+  - HAVE_STL_STACK_TEST_RESULT: 1 if the platform provides a working
+    <stack> implementation, 0 otherwise
+  - HAVE_STL_STRING_TEST_RESULT: 1 if the platform provides a working
+    <string> implementation, 0 otherwise
+  - HAVE_STL_TYPE_TRAITS_TEST_RESULT: 1 if the platform provides a working
+    <type_traits> implementation, 0 otherwise
+  - HAVE_STL_TUPLE_TEST_RESULT: 1 if the platform provides a working
+    <tuple> implementation, 0 otherwise
+  - HAVE_STL_SYSTEM_ERROR_TEST_RESULT: 1 if the platform provides a working
+    <system_error> implementation, 0 otherwise
+
+  Furthermore, the file "arith.h" must be generated and copied to
+  config/include/dcmtk/config/arith.h in the **build** directory.
+  This file can be generated by compiling config/tests/arith.cc
+  and running the executable on the target platform.
+
 
 BUILDING (Unix with Autoconf)
 =============================
@@ -901,14 +978,11 @@ options are:
   --disable-threads       compile without MT support
   --enable-lfs=TYPE       compile with LFS support (lfs/lfs64/auto=default)
   --disable-lfs           compile without LFS support
-  --enable-std-includes   use C++ ANSI standard includes
-  --disable-std-includes  use old C++ includes
+  --enable-default-dict=TYPE  enable default dictionary and specify type
+                          (external=default/builtin)
+  --disable-default-dict  disable default dictionary
   --enable-private-tags   enable private tag dictionary
   --disable-private-tags  don't enable private tag dictionary (default)
-  --enable-external-dict  enable loading of external dictionary (default)
-  --disable-external-dict don't load external dictionary
-  --enable-builtin-dict   enable loading of built-in dictionary
-  --disable-builtin-dict  don't load built-in dictionary (default)
   --disable-rpath         do not hardcode runtime library paths
   --enable-charconv=TYPE  enable character set conversion support
                           (libiconv/libicu/stdlibc/auto=default)
@@ -988,4 +1062,4 @@ Have fun.
 M. Eichelberg, J. Riesmeier, M. Onken, J. Schlamelcher, P. Arizpe Gomez
 DCMTK Development Team, Oldenburg, Germany.
 
-Last revised: 2021-01-14 (Onken)
+Last revised: 2021-11-16 (Eichelberg)

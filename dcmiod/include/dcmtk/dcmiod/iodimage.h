@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2015-2019, Open Connections GmbH
+ *  Copyright (C) 2015-2021, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -199,7 +199,7 @@ private:
     typename std::enable_if<DcmIODImageHasType<T, Types...>::value, OFCondition>::type
 #else
     OFTypename
-        OFenable_if<(OFvariadic_find_type<T, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value != -1), OFCondition>::type
+        OFenable_if<(OFvariadic_find_type<T, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value != ~OFstatic_cast(size_t,0)), OFCondition>::type
 #endif
     readFloatingPointDoubleImagePixel(DcmItem& dataset)
     {
@@ -213,7 +213,7 @@ private:
     typename std::enable_if<!DcmIODImageHasType<T, Types...>::value, OFCondition>::type
 #else
     OFTypename
-        OFenable_if<(OFvariadic_find_type<T, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value == -1), OFCondition>::type
+        OFenable_if<(OFvariadic_find_type<T, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value == ~OFstatic_cast(size_t,0)), OFCondition>::type
 #endif
     readFloatingPointDoubleImagePixel(DcmItem& dataset)
     {
@@ -225,7 +225,7 @@ private:
     typename std::enable_if<DcmIODImageHasType<T, Types...>::value, OFCondition>::type
 #else
     OFTypename
-        OFenable_if<(OFvariadic_find_type<T, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value != -1), OFCondition>::type
+        OFenable_if<(OFvariadic_find_type<T, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value != ~OFstatic_cast(size_t,0)), OFCondition>::type
 #endif
     readFloatingPointImagePixel(DcmItem& dataset)
     {
@@ -239,7 +239,7 @@ private:
     typename std::enable_if<!DcmIODImageHasType<T, Types...>::value, OFCondition>::type
 #else
     OFTypename
-        OFenable_if<(OFvariadic_find_type<T, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value == -1), OFCondition>::type
+        OFenable_if<(OFvariadic_find_type<T, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value == ~OFstatic_cast(size_t,0)), OFCondition>::type
 #endif
     readFloatingPointImagePixel(DcmItem& dataset)
     {
@@ -248,7 +248,8 @@ private:
 
     OFCondition readIntegerImagePixel(DcmItem& dataset)
     {
-        Uint16 allocated, representation;
+        Uint16 allocated = 0;
+        Uint16 representation = 0;
         // Pixel data is not managed right now by Image Pixel Module class.
         if (/*  dataset.tagExists(DCM_PixelData) && */ dataset.findAndGetUint16(DCM_BitsAllocated, allocated).good()
             && dataset.findAndGetUint16(DCM_PixelRepresentation, representation).good())
@@ -273,7 +274,7 @@ private:
     typename std::enable_if<DcmIODImageHasType<IODImagePixelModule<T>, Types...>::value, OFCondition>::type
 #else
     OFTypename
-        OFenable_if<(OFvariadic_find_type<IODImagePixelModule<T>, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value != -1),
+        OFenable_if<(OFvariadic_find_type<IODImagePixelModule<T>, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value != ~OFstatic_cast(size_t,0)),
                     OFCondition>::type
 #endif
     readImagePixel(DcmItem& dataset)
@@ -287,7 +288,7 @@ private:
     typename std::enable_if<!DcmIODImageHasType<IODImagePixelModule<T>, Types...>::value, OFCondition>::type
 #else
     OFTypename
-        OFenable_if<(OFvariadic_find_type<IODImagePixelModule<T>, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value == -1),
+        OFenable_if<(OFvariadic_find_type<IODImagePixelModule<T>, OFVARIADIC_TEMPLATE_PARAMETER_PACK(T)>::value == ~OFstatic_cast(size_t,0)),
                     OFCondition>::type
 #endif
     readImagePixel(DcmItem& dataset)

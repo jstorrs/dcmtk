@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1996-2019, OFFIS e.V.
+ *  Copyright (C) 1996-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -43,6 +43,9 @@
 #include "dcmtk/dcmdata/dcdicent.h"  // needed by MSVC5 with STL
 #include "dcmtk/oflog/internal/env.h"
 #include "dcmtk/dcmwlm/wlmactmg.h"
+#include "dcmtk/ofstd/ofstdinc.h"
+#include <ctime>
+
 
 
 // ----------------------------------------------------------------------------
@@ -857,7 +860,7 @@ OFCondition WlmActivityManager::HandleFindSCP( T_ASC_Association *assoc, T_DIMSE
   if( opt_sleepAfterFind > 0 )
   {
     DCMWLM_INFO("Sleeping (after find): " << opt_sleepAfterFind << " secs");
-    OFStandard::sleep( (unsigned int)opt_sleepAfterFind );
+    OFStandard::forceSleep( (unsigned int)opt_sleepAfterFind );
   }
 
   // return result
@@ -1131,7 +1134,7 @@ static void FindCallback( void *callbackData, OFBool cancelled, T_DIMSE_C_FindRQ
     if (opt_sleepBeforeFindReq > 0)
     {
       DCMWLM_INFO("SLEEPING (before evaluating find request): " << opt_sleepBeforeFindReq << " secs");
-      OFStandard::sleep((unsigned int)opt_sleepBeforeFindReq);
+      OFStandard::forceSleep((unsigned int)opt_sleepBeforeFindReq);
     }
 
     // Determine the records that match the search mask. After this call, the
@@ -1148,7 +1151,7 @@ static void FindCallback( void *callbackData, OFBool cancelled, T_DIMSE_C_FindRQ
   if( opt_sleepDuringFind > 0 )
   {
     DCMWLM_INFO("SLEEPING (during find): " << opt_sleepDuringFind << " secs");
-    OFStandard::sleep((unsigned int)opt_sleepDuringFind);
+    OFStandard::forceSleep((unsigned int)opt_sleepDuringFind);
   }
 
   // If we encountered a C-CANCEL-RQ and if we have pending
@@ -1174,7 +1177,7 @@ static void FindCallback( void *callbackData, OFBool cancelled, T_DIMSE_C_FindRQ
   }
 
   // Set response status
-  response->DimseStatus = dbstatus;
+  response->DimseStatus = OFstatic_cast(DIC_US, dbstatus);
 
   // Delete status detail information if there is some
   if( *statusDetail != NULL )

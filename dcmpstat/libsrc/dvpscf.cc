@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1998-2018, OFFIS e.V.
+ *  Copyright (C) 1998-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -25,11 +25,6 @@
 #include "dcmtk/ofstd/ofconfig.h"    /* for class OFConfigFile */
 #include "dcmtk/dcmpstat/dvpsdef.h"     /* for constants */
 #include "dcmtk/ofstd/ofstd.h"       /* for class OFStandard */
-
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CCTYPE
-#include "dcmtk/ofstd/ofstdinc.h"
 
 #ifndef HAVE_WINDOWS_H
 /* some Unix operating systems do not define a prototype for strncasecmp
@@ -181,7 +176,7 @@ static Uint32 countValues(const char *str)
     Uint32 result = 0;
     if (*str) result++;
     char c;
-    while ((c = *str++)) if (c == '\\') result++;
+    while ((c = *str++) != '\0') if (c == '\\') result++;
     return result;
   }
   return 0;

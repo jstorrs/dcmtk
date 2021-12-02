@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2007-2020, OFFIS e.V.
+ *  Copyright (C) 2007-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -28,9 +28,6 @@
 #include "dcmtk/ofstd/ofstream.h"
 #include "dcmtk/ofstd/offile.h"      /* for class OFFile */
 #include "dcmtk/ofstd/ofbmanip.h"
-
-#define INCLUDE_CMATH
-#include "dcmtk/ofstd/ofstdinc.h"
 
 // dcmdata includes
 #include "dcmtk/dcmdata/dcdatset.h"  /* for class DcmDataset */
@@ -920,8 +917,8 @@ OFCondition DJLSEncoderBase::losslessCookedEncode(
         result = dataset->putAndInsertUint16(DCM_BitsAllocated, 16);
       else
         result = dataset->putAndInsertUint16(DCM_BitsAllocated, 8);
-    if (result.good()) result = dataset->putAndInsertUint16(DCM_BitsStored, bitsPerSample);
-    if (result.good()) result = dataset->putAndInsertUint16(DCM_HighBit, bitsPerSample-1);
+    if (result.good()) result = dataset->putAndInsertUint16(DCM_BitsStored, OFstatic_cast(Uint16, bitsPerSample));
+    if (result.good()) result = dataset->putAndInsertUint16(DCM_HighBit, OFstatic_cast(Uint16, (bitsPerSample-1)));
     if (result.good())
     {
       if (photometricInterpretation == "RGB" || photometricInterpretation == "YBR_FULL")
@@ -1103,7 +1100,7 @@ OFCondition DJLSEncoderBase::compressCookedFrame(
   // Unset: jls_params.jfif (thumbnail, dpi)
 
   // set parameters T1, T2, T3, MAXVAL and RESET
-  setCustomParameters(jls_params.custom, depth, nearLosslessDeviation, djcp);
+  setCustomParameters(jls_params.custom, OFstatic_cast(Uint16, depth), nearLosslessDeviation, djcp);
 
   switch (djcp->getJplsInterleaveMode())
   {
@@ -1178,7 +1175,7 @@ OFCondition DJLSEncoderBase::convertToUninterleaved(
     Uint32 height,
     Uint16 bitsAllocated) const
 {
-  Uint8 bytesAllocated = bitsAllocated / 8;
+  Uint8 bytesAllocated = OFstatic_cast(Uint8, (bitsAllocated / 8));
   Uint32 planeSize = width * height * bytesAllocated;
 
   if (bitsAllocated % 8 != 0)
@@ -1203,7 +1200,7 @@ OFCondition DJLSEncoderBase::convertToSampleInterleaved(
     Uint32 height,
     Uint16 bitsAllocated) const
 {
-  Uint8 bytesAllocated = bitsAllocated / 8;
+  Uint8 bytesAllocated = OFstatic_cast(Uint8, (bitsAllocated / 8));
   Uint32 planeSize = width * height * bytesAllocated;
 
   if (bitsAllocated % 8 != 0)

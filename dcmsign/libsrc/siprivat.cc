@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1998-2020, OFFIS e.V.
+ *  Copyright (C) 1998-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -28,16 +28,13 @@
 #include "dcmtk/dcmsign/sipkey.h"
 #include "dcmtk/dcmsign/sicert.h"
 
-#define INCLUDE_CSTRING
-#include "dcmtk/ofstd/ofstdinc.h"
-
 BEGIN_EXTERN_C
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 END_EXTERN_C
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#ifndef HAVE_OPENSSL_PROTOTYPE_EVP_PKEY_ID
 #define EVP_PKEY_id(key) key->type
 #endif
 

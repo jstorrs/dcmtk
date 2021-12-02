@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2003-2019, OFFIS e.V.
+ *  Copyright (C) 2003-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -25,9 +25,6 @@
 
 #include "dcmtk/dcmsr/dsrxmld.h"
 
-#define INCLUDE_CSTDARG
-#include "dcmtk/ofstd/ofstdinc.h"
-
 #ifdef WITH_LIBXML
 #include <libxml/xmlversion.h>
 
@@ -36,7 +33,11 @@
 #endif /* LIBXML_SCHEMAS_ENABLED */
 
 // This function is also used in xml2dcm, try to stay in sync!
+#if defined(HAVE_VSNPRINTF) && defined(HAVE_PROTOTYPE_VSNPRINTF)
 extern "C" void errorFunction(void * ctx, const char *msg, ...)
+#else
+extern "C" void errorFunction(void * /* ctx */, const char *msg, ...)
+#endif
 {
     OFLogger xmlLogger = OFLog::getLogger("dcmtk.dcmsr.libxml");
 

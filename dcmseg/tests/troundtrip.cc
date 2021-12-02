@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2019-2020, OFFIS e.V.
+ *  Copyright (C) 2019-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -31,6 +31,7 @@
 #include "dcmtk/dcmfg/fgplanpo.h"
 #include "dcmtk/dcmfg/fgseg.h"
 #include "dcmtk/dcmiod/iodmacro.h"
+#include "dcmtk/dcmdata/dcxfer.h"
 #include "dcmtk/ofstd/ofmem.h"
 #include "dcmtk/ofstd/ofstrutl.h"
 #include "dcmtk/ofstd/oftempf.h"
@@ -285,6 +286,7 @@ static void checkConcatenationInstance(size_t numInstance, DcmSegmentation* srcI
 {
     DcmSegmentation* concat = NULL;
     OFCHECK(DcmSegmentation::loadDataset(*concatInstance, concat).good());
+    if (concat == NULL) return; // loadDataset() failed, we cannot continue
     size_t numFrames;
     numFrames = concat->getNumberOfFrames();
     OFCHECK(numFrames == 1);
@@ -327,7 +329,7 @@ static void checkConcatenationInstance(size_t numInstance, DcmSegmentation* srcI
             && (cShared == concat->getFunctionalGroups().getShared()->end()));
     DcmSequenceOfItems* cPerFrame = NULL;
     OFCHECK(concatInstance->findAndGetSequence(DCM_PerFrameFunctionalGroupsSequence, cPerFrame).good());
-    OFCHECK(cPerFrame->card() == 1);
+    OFCHECK(cPerFrame && (cPerFrame->card() == 1));
 
     OFBool perFrame = OFFalse;
     FGBase* fg      = concat->getFunctionalGroups().get(0, DcmFGTypes::EFG_FRAMECONTENT, perFrame);
@@ -406,7 +408,11 @@ static void prepareExpectedDump()
 {
     EXPECTED_DUMP = "\n";
     EXPECTED_DUMP += "# Dicom-Data-Set\n";
-    EXPECTED_DUMP += "# Used TransferSyntax: Little Endian Explicit\n";
+    // DcmDataset.print() produces dumps in local endianess, so make sure the dump reflects the current machine
+    if (gLocalByteOrder == EBO_LittleEndian)
+        EXPECTED_DUMP += "# Used TransferSyntax: Little Endian Explicit\n";
+    else
+        EXPECTED_DUMP += "# Used TransferSyntax: Big Endian Explicit\n";
     EXPECTED_DUMP += "(0008,0008) CS [DERIVED\\PRIMARY]                        #  16, 2 ImageType\n";
     EXPECTED_DUMP += "(0008,0016) UI =SegmentationStorage                     #  28, 1 SOPClassUID\n";
     EXPECTED_DUMP

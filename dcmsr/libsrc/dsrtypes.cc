@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2000-2020, OFFIS e.V.
+ *  Copyright (C) 2000-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -68,11 +68,6 @@
 #include "dcmtk/dcmdata/dcvrtm.h"
 
 #include "dcmtk/ofstd/ofstd.h"
-
-#define INCLUDE_CSTDIO
-#define INCLUDE_CCTYPE
-#include "dcmtk/ofstd/ofstdinc.h"
-
 
 /*---------------------------------*
  *  constant definitions (part 1)  *
@@ -335,6 +330,7 @@ static const S_DocumentTypeNameMap DocumentTypeNameMap[] =
     {DSRTypes::DT_ColonCadSR,                            UID_ColonCADSRStorage,                               EM_EnhancedEquipment,                                             "SR", "Colon CAD SR"},
     {DSRTypes::DT_ProcedureLog,                          UID_ProcedureLogStorage,                             EM_Synchronization,                                               "SR", "Procedure Log"},
     {DSRTypes::DT_XRayRadiationDoseSR,                   UID_XRayRadiationDoseSRStorage,                      EM_EnhancedEquipment,                                             "SR", "X-Ray Radiation Dose SR"},
+    {DSRTypes::DT_EnhancedXRayRadiationDoseSR,           UID_EnhancedXRayRadiationDoseSRStorage,              EM_EnhancedEquipment,                                             "SR", "Enhanced X-Ray Radiation Dose SR"},
     {DSRTypes::DT_SpectaclePrescriptionReport,           UID_SpectaclePrescriptionReportStorage,              EM_EnhancedEquipment,                                             "SR", "Spectacle Prescription Report"},
     {DSRTypes::DT_MacularGridThicknessAndVolumeReport,   UID_MacularGridThicknessAndVolumeReportStorage,      EM_EnhancedEquipment,                                             "SR", "Macular Grid Thickness and Volume Report"},
     {DSRTypes::DT_ImplantationPlanSRDocument,            UID_ImplantationPlanSRDocumentStorage,               EM_EnhancedEquipment,                                             "SR", "Implantation Plan SR Document"},
@@ -956,7 +952,7 @@ DSRTypes::E_CharacterSet DSRTypes::definedTermToCharacterSet(const OFString &def
 
 OFBool DSRTypes::isDocumentTypeSupported(const E_DocumentType documentType)
 {
-    return (documentType != DT_invalid) && (documentType != DT_ExtensibleSR);
+    return (documentType != DT_invalid) && (documentType != DT_ExtensibleSR) && (documentType != DT_EnhancedXRayRadiationDoseSR);
 }
 
 
@@ -1554,6 +1550,9 @@ DSRIODConstraintChecker *DSRTypes::createIODConstraintChecker(const E_DocumentTy
             break;
         case DT_RenditionSelectionDocument:
             checker = new DSRRenditionSelectionDocumentConstraintChecker();
+            break;
+        case DT_EnhancedXRayRadiationDoseSR:
+            /* not yet supported */
             break;
         case DT_invalid:
             /* nothing to do */

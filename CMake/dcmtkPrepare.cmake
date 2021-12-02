@@ -7,11 +7,6 @@ if(DEFINED DCMTK_CONFIGURATION_DONE)
 endif()
 set(DCMTK_CONFIGURATION_DONE true)
 
-# Latest CMake version tested
-if(CMAKE_BACKWARDS_COMPATIBILITY GREATER 3.18.4)
-  set(CMAKE_BACKWARDS_COMPATIBILITY 3.18.4 CACHE STRING "Latest version of CMake when this project was released." FORCE)
-endif()
-
 # CMAKE_BUILD_TYPE is set to value "Release" if none is specified by the
 # selected build file generator. For those generators that support multiple
 # configuration types (e.g. Debug, Release), CMAKE_CONFIGURATION_TYPES holds
@@ -108,6 +103,7 @@ option(BUILD_SHARED_LIBS "Build with shared libraries." OFF)
 option(BUILD_SINGLE_SHARED_LIBRARY "Build a single DCMTK library." OFF)
 mark_as_advanced(BUILD_SINGLE_SHARED_LIBRARY)
 set(CMAKE_DEBUG_POSTFIX "" CACHE STRING "Library postfix for debug builds. Usually left blank.")
+set(DCMTK_TLS_LIBRARY_POSTFIX "" CACHE STRING "Postfix for libraries that change their ABI when using OpenSSL.")
 # add our CMake modules to the module path, but prefer the ones from CMake.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_ROOT}/Modules" "${CMAKE_CURRENT_SOURCE_DIR}/${DCMTK_CMAKE_INCLUDE}/CMake/")
 if(BUILD_SINGLE_SHARED_LIBRARY)
@@ -156,27 +152,31 @@ DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_TUPLE "Enable use of STL tuple.")
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_STL_SYSTEM_ERROR "Enable use of STL system_error.")
 DCMTK_INFERABLE_OPTION(DCMTK_ENABLE_CXX11 "Enable use of native C++11 features (eg. move semantics).")
 
-# Built-in (compiled-in) dictionary enabled on Windows per default, otherwise
-# disabled. Loading of external dictionary via run-time is, per default,
-# configured the the opposite way since most users won't be interested in using
-# the external default dictionary if it is already compiled in.
+# On Windows, the built-in dictionary is default, on Unix the external one.
+# It is not possible to use both, built-in plus external default dictionary.
 if(WIN32 OR MINGW)
-  option(DCMTK_ENABLE_BUILTIN_DICTIONARY "Configure DCMTK with compiled-in data dictionary." ON)
-  option(DCMTK_ENABLE_EXTERNAL_DICTIONARY "Configure DCMTK to load external dictionary from default path on startup." ON)
+  set(DCMTK_DEFAULT_DICT "builtin" CACHE STRING "Denotes whether DCMTK will use built-in (compiled-in), external (file), or no default dictionary on startup")
 else() # built-in dictionary turned off on Unix per default
-  option(DCMTK_ENABLE_BUILTIN_DICTIONARY "Configure DCMTK with compiled-in data dictionary." OFF)
-  option(DCMTK_ENABLE_EXTERNAL_DICTIONARY "Configure DCMTK to load external dictionary from default path on startup." ON)
+  set(DCMTK_DEFAULT_DICT "external" CACHE STRING "Denotes whether DCMTK will use built-in (compiled-in), external (file), or no default dictionary on startup")
 endif()
-if (NOT DCMTK_ENABLE_EXTERNAL_DICTIONARY AND NOT DCMTK_ENABLE_BUILTIN_DICTIONARY)
-  message(WARNING "Either external or built-in dictionary should be enabled, otherwise dictionary must be loaded manually on startup!")
+set_property(CACHE DCMTK_DEFAULT_DICT PROPERTY STRINGS builtin external none)
+if (DCMTK_DEFAULT_DICT EQUAL "none")
+  message(WARNING "Denotes whether DCMTK will use built-in (compiled-in), external (file), or no default dictionary on startup")
 endif()
 
+# Per default, we allow users to load user-defined dictionaries pointed to via
+# environment variable DCMDICTPATH.
+option(DCMTK_USE_DCMDICTPATH "Enable reading dictionary that is defined through DCMDICTPATH environment variable." ON)
+
+
 # Mark various settings as "advanced"
+mark_as_advanced(DCMTK_USE_DCMDICTPATH)
 mark_as_advanced(CMAKE_DEBUG_POSTFIX)
 mark_as_advanced(FORCE EXECUTABLE_OUTPUT_PATH LIBRARY_OUTPUT_PATH)
 mark_as_advanced(SNDFILE_DIR DCMTK_WITH_SNDFILE) # not yet needed in public DCMTK
 mark_as_advanced(DCMTK_GENERATE_DOXYGEN_TAGFILE)
 mark_as_advanced(DCMTK_WITH_OPENJPEG) # only needed by DCMJP2K module
+mark_as_advanced(DCMTK_TLS_LIBRARY_POSTFIX)
 
 if(NOT WIN32)
   # support for wide char file I/O functions is currently Windows-specific
@@ -248,14 +248,11 @@ elseif(WIN32)
 endif()
 
 #-----------------------------------------------------------------------------
-# Build directories
+# Interface target to collect all DCMTK libraries
 #-----------------------------------------------------------------------------
-set(DCMTK_BUILD_CMKDIR "${CMAKE_BINARY_DIR}")
-
-#-----------------------------------------------------------------------------
-# Start with clean DCMTKTargets.cmake, filled in GenerateCMakeExports.cmake
-#-----------------------------------------------------------------------------
-file(WRITE "${DCMTK_BUILD_CMKDIR}/DCMTKTargets.cmake" "")
+add_library(DCMTK INTERFACE)
+install(TARGETS DCMTK EXPORT DCMTKTargets)
+target_link_libraries(DCMTK INTERFACE config)
 
 #-----------------------------------------------------------------------------
 # Platform-independent settings
@@ -402,7 +399,11 @@ if(WIN32)   # special handling for Windows systems
             -D_CRT_VCCLRIT_NO_DEPRECATE
             -D_SCL_SECURE_NO_DEPRECATE
             )
+          # suppress linker warning LNK4099 about missing .pdb files when compiling in debug mode
+          set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099")
+          set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4099")
         endif()
+        # Enable various warnings
       endif()
     endif()
   endif()
@@ -417,7 +418,13 @@ else()   # ... for non-Windows systems
   elseif(CMAKE_SYSTEM_NAME MATCHES "NetBSD")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_XOPEN_SOURCE_EXTENDED -D_XOPEN_SOURCE=500 -D_NETBSD_SOURCE -D_DEFAULT_SOURCE -D_BSD_COMPAT -D_OSF_SOURCE -D_POSIX_C_SOURCE=199506L")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_XOPEN_SOURCE_EXTENDED -D_XOPEN_SOURCE=500 -D_NETBSD_SOURCE -D_DEFAULT_SOURCE -D_BSD_COMPAT -D_OSF_SOURCE -D_POSIX_C_SOURCE=199506L")
+  # Compiler flags for DragonFly BSD
+  elseif(CMAKE_SYSTEM_NAME MATCHES "DragonFly")
+    # On DragonFly BSD, we don't set any of the feature macros because they are not needed and
+    # actually cause problems such as strlcpy() not being declared in <cstring>.
   # Solaris, FreeBSD and newer versions of OpenBSD fail with these flags
+  elseif(CMAKE_SYSTEM_NAME MATCHES "Android")
+    # On Android, we don't set any of the feature macros
   elseif(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS" AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD" AND (NOT CMAKE_SYSTEM_NAME MATCHES "OpenBSD" OR CMAKE_SYSTEM_VERSION VERSION_LESS 4))
     # Compiler flags for all other non-Windows systems
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_XOPEN_SOURCE_EXTENDED -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_BSD_COMPAT -D_OSF_SOURCE -D_POSIX_C_SOURCE=199506L")
@@ -501,16 +508,48 @@ define_property(GLOBAL PROPERTY DCMTK_MODERN_CXX_STANDARDS
 set_property(GLOBAL PROPERTY DCMTK_MODERN_CXX_STANDARDS 11 14 17)
 
 #-----------------------------------------------------------------------------
+# Enable various warnings by default
+#-----------------------------------------------------------------------------
+
+# fallback implementation of add_compile_options()
+if(CMAKE_MAJOR_VERSION LESS 3 AND NOT CMAKE_VERSION VERSION_EQUAL 2.8.12)
+  function(add_compile_options)
+    foreach(OPTION ${ARGN})
+        foreach(FLAG C CXX)
+            string(FIND "${CMAKE_${FLAG}_FLAGS}" "${OPTION}" IDX)
+            if(IDX EQUAL -1)
+                set("CMAKE_${FLAG}_FLAGS" "${CMAKE_${FLAG}_FLAGS} ${OPTION}" PARENT_SCOPE)
+            endif()
+        endforeach()
+    endforeach()
+  endfunction()
+endif()
+
+if(MSVC)
+    # This code removes existing warning flags to prevent MSVC warning D9025.
+    # Remove it once our minimum CMake version is >= 3.15, since those newer
+    # CMake versions no longer add those flags by default.
+    foreach(FLAG C CXX)
+        string(REGEX REPLACE "[ \t\r\n]+/[wW][0-9]" "" "CMAKE_${FLAG}_FLAGS" "${CMAKE_${FLAG}_FLAGS}")
+        string(REGEX REPLACE "/[wW][0-9][ \t\r\n]*" "" "CMAKE_${FLAG}_FLAGS" "${CMAKE_${FLAG}_FLAGS}")
+    endforeach()
+    add_compile_options("/W4")
+else()
+    # Add -Wall to the compiler flags if we are compiling with gcc or Clang.
+    if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR
+        (CMAKE_CXX_COMPILER_ID STREQUAL "Clang") OR
+        (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang") OR
+        (CMAKE_CXX_COMPILER_ID STREQUAL "ARMClang") OR
+        (CMAKE_CXX_COMPILER_ID STREQUAL "XLClang"))
+        add_compile_options("-Wall")
+    endif()
+endif()
+
+#-----------------------------------------------------------------------------
 # Third party libraries
 #-----------------------------------------------------------------------------
 
 include(${DCMTK_CMAKE_INCLUDE}CMake/3rdparty.cmake)
-
-#-----------------------------------------------------------------------------
-# DCMTK libraries
-#-----------------------------------------------------------------------------
-
-include(${DCMTK_CMAKE_INCLUDE}CMake/GenerateDCMTKConfigure.cmake)
 
 #-----------------------------------------------------------------------------
 # Dart configuration (disabled per default)
@@ -523,6 +562,12 @@ include(${DCMTK_CMAKE_INCLUDE}CMake/GenerateDCMTKConfigure.cmake)
 # if(BUILD_TESTING)
 #   enable_testing()
 # endif()
+
+#-----------------------------------------------------------------------------
+# DCMTK libraries
+#-----------------------------------------------------------------------------
+
+include(${DCMTK_CMAKE_INCLUDE}CMake/GenerateDCMTKConfigure.cmake)
 
 #-----------------------------------------------------------------------------
 # Thread support
@@ -551,6 +596,70 @@ if(WITH_THREADS)
     endif()
   endif()
 endif()
+
+#-----------------------------------------------------------------------------
+# OpenSSL functions (these tests must be run after THREAD_LIBS is set)
+#-----------------------------------------------------------------------------
+
+# Run the OpenSSL feature tests only if OpenSSL was detected and is enabled
+if(DCMTK_WITH_OPENSSL)
+  # save previous value of CMAKE_REQUIRED_LIBRARIES
+  set(CMAKE_REQUIRED_LIBRARIES_TEMP ${CMAKE_REQUIRED_LIBRARIES})
+
+  # add OpenSSL libraries
+  set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ${OPENSSL_LIBS} ${THREAD_LIBS})
+
+  # check whether we have <openssl/provider.h>
+  CHECK_INCLUDE_FILE_CXX("openssl/provider.h" HAVE_OPENSSL_PROVIDER_H)
+
+  # test presence of functions, constants and macros needed for the dcmtls module
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_get0_param" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_GET0_PARAM)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("RAND_egd" "openssl/rand.h" HAVE_OPENSSL_PROTOTYPE_RAND_EGD)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("DH_bits" "openssl/dh.h" HAVE_OPENSSL_PROTOTYPE_DH_BITS)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("EVP_PKEY_RSA_PSS" "openssl/evp.h" HAVE_OPENSSL_PROTOTYPE_EVP_PKEY_RSA_PSS)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("EVP_PKEY_base_id" "openssl/evp.h" HAVE_OPENSSL_PROTOTYPE_EVP_PKEY_BASE_ID)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_get_cert_store" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_GET_CERT_STORE)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_get_ciphers" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_GET_CIPHERS)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_set0_tmp_dh_pkey" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET0_TMP_DH_PKEY)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_set1_curves(0,0,0)" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET1_CURVES)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_set1_sigalgs" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET1_SIGALGS)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_set_ecdh_auto(0,0)" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET_ECDH_AUTO)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_set_max_proto_version(0,0)" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET_MAX_PROTO_VERSION)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_CTX_set_security_level" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET_SECURITY_LEVEL)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_ERROR_WANT_ASYNC" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_ERROR_WANT_ASYNC)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_ERROR_WANT_ASYNC_JOB" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_ERROR_WANT_ASYNC_JOB)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("SSL_ERROR_WANT_CLIENT_HELLO_CB" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_SSL_ERROR_WANT_CLIENT_HELLO_CB)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TLS_method" "openssl/ssl.h" HAVE_OPENSSL_PROTOTYPE_TLS_METHOD)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("X509_STORE_get0_param" "openssl/x509.h" HAVE_OPENSSL_PROTOTYPE_X509_STORE_GET0_PARAM)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("X509_get_signature_nid" "openssl/x509.h" HAVE_OPENSSL_PROTOTYPE_X509_GET_SIGNATURE_NID)
+
+  # test presence of functions, constants and macros needed for the dcmsign module
+  CHECK_FUNCTIONWITHHEADER_EXISTS("ASN1_STRING_get0_data" "openssl/asn1.h" HAVE_OPENSSL_PROTOTYPE_ASN1_STRING_GET0_DATA)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("EVP_PKEY_get0_EC_KEY" "openssl/evp.h" HAVE_OPENSSL_PROTOTYPE_EVP_PKEY_GET0_EC_KEY)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("EVP_PKEY_get_group_name" "openssl/evp.h" HAVE_OPENSSL_PROTOTYPE_EVP_PKEY_GET_GROUP_NAME)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("EVP_PKEY_id" "openssl/evp.h" HAVE_OPENSSL_PROTOTYPE_EVP_PKEY_ID)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("OSSL_PROVIDER_load" "openssl/provider.h" HAVE_OPENSSL_PROTOTYPE_OSSL_PROVIDER_LOAD)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TS_STATUS_INFO_get0_failure_info" "openssl/ts.h" HAVE_OPENSSL_PROTOTYPE_TS_STATUS_INFO_GET0_FAILURE_INFO)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TS_STATUS_INFO_get0_status" "openssl/ts.h" HAVE_OPENSSL_PROTOTYPE_TS_STATUS_INFO_GET0_STATUS)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TS_STATUS_INFO_get0_text" "openssl/ts.h" HAVE_OPENSSL_PROTOTYPE_TS_STATUS_INFO_GET0_TEXT)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TS_VERIFY_CTS_set_certs(0,0)" "openssl/ts.h" HAVE_OPENSSL_PROTOTYPE_TS_VERIFY_CTS_SET_CERTS)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TS_VERIFY_CTX_set_data" "openssl/ts.h" HAVE_OPENSSL_PROTOTYPE_TS_VERIFY_CTX_SET_DATA)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TS_VERIFY_CTX_set_flags" "openssl/ts.h" HAVE_OPENSSL_PROTOTYPE_TS_VERIFY_CTX_SET_FLAGS)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("TS_VERIFY_CTX_set_store" "openssl/ts.h" HAVE_OPENSSL_PROTOTYPE_TS_VERIFY_CTX_SET_STORE)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("X509_get0_notAfter" "openssl/x509.h" HAVE_OPENSSL_PROTOTYPE_X509_GET0_NOTAFTER)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("X509_get0_notBefore" "openssl/x509.h" HAVE_OPENSSL_PROTOTYPE_X509_GET0_NOTBEFORE)
+
+  # check if type EVP_MD_CTX is defined as typedef for "struct evp_md_ctx_st" (new) or "struct env_md_ctx_st" (old)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("struct evp_md_ctx_st *a; EVP_MD_CTX *b=a" "openssl/evp.h" HAVE_OPENSSL_DECLARATION_NEW_EVP_MD_CTX)
+
+  # check if the first parameter passed to X509_ALGOR_get0() should be "const ASN1_OBJECT **" (new) or "ASN1_OBJECT **" (old)
+  CHECK_FUNCTIONWITHHEADER_EXISTS("const ASN1_OBJECT *a; X509_ALGOR_get0(&a,0,0,0)" "openssl/x509.h" HAVE_OPENSSL_X509_ALGOR_GET0_CONST_PARAM)
+
+  # restore previous value of CMAKE_REQUIRED_LIBRARIES
+  set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_TEMP})
+endif()
+
 
 #-----------------------------------------------------------------------------
 # Test for socket libraries if needed (Solaris)

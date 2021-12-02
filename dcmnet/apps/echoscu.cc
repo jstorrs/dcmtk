@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2018, OFFIS e.V.
+ *  Copyright (C) 1994-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -20,12 +20,6 @@
  */
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
-
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CSTDARG
-#include "dcmtk/ofstd/ofstdinc.h"
 
 #include "dcmtk/dcmnet/dimse.h"
 #include "dcmtk/dcmnet/diutil.h"
@@ -128,7 +122,7 @@ main(int argc, char *argv[])
   OFOStringStream optStream;
   int result = EXITCODE_NO_ERROR;
 
-  const char *     opt_peer                = NULL;
+  const char *     opt_peer                = "localhost";
   OFCmdUnsignedInt opt_port                = 104;
   const char *     opt_peerTitle           = PEERAPPLICATIONTITLE;
   const char *     opt_ourTitle            = APPLICATIONTITLE;
@@ -141,7 +135,6 @@ main(int argc, char *argv[])
   int              opt_acse_timeout        = 30;
   OFCmdSignedInt   opt_socket_timeout      = 60;
   DcmTLSOptions    tlsOptions(NET_REQUESTOR);
-
   T_ASC_Network *net;
   T_ASC_Parameters *params;
   DIC_NODENAME peerHost;
@@ -196,6 +189,12 @@ main(int argc, char *argv[])
     // add TLS specific command line options if (and only if) we are compiling with OpenSSL
     tlsOptions.addTLSCommandlineOptions(cmd);
 
+#ifdef WITH_OPENSSL
+    cmd.addSubGroup("offline certificate verification:");
+      cmd.addOption("--verify-cert",   "+vc",   1, "[f]ilename: string", "verify certificate against CA settings", OFCommandLine::AF_Exclusive);
+      cmd.addOption("--is-root-cert",  "+rc",   1, "[f]ilename: string", "check if certificate is self-signed root CA", OFCommandLine::AF_Exclusive);
+#endif
+
     /* evaluate command line */
     prepareCmdLineArgs(argc, argv, OFFIS_CONSOLE_APPLICATION);
     if (app.parseCommandLine(cmd, argc, argv))
@@ -230,8 +229,18 @@ main(int argc, char *argv[])
 
       /* command line parameters */
 
+#ifdef WITH_OPENSSL
+      // special handling for the exclusive options that can only be evaluated
+      // once all other options have been processed
+      if ((! cmd.findOption("--verify-cert")) && (! cmd.findOption("--is-root-cert")))
+      {
+        cmd.getParam(1, opt_peer);
+        app.checkParam(cmd.getParamAndCheckMinMax(2, opt_port, 1, 65535));
+      }
+#else
       cmd.getParam(1, opt_peer);
       app.checkParam(cmd.getParamAndCheckMinMax(2, opt_port, 1, 65535));
+#endif
 
       OFLog::configureFromCommandLine(cmd, app);
 
@@ -308,6 +317,45 @@ main(int argc, char *argv[])
         exit(1);
     }
 
+#ifdef WITH_OPENSSL
+    if (cmd.findOption( "--verify-cert" ))
+    {
+        const char *cert_filename = NULL;
+        app.checkValue( cmd.getValue( cert_filename ) );
+
+        cond = tlsOptions.verifyClientCertificate(cert_filename);
+        if (cond.good())
+        {
+          COUT << "Verification of certificate '" << cert_filename << "' passed." << OFendl;
+          return EXITCODE_NO_ERROR;
+        }
+        else
+        {
+          COUT << "Verification of certificate '" << cert_filename << "' failed." << OFendl;
+          return EXITCODE_INVALID_INPUT_FILE;
+        }
+    }
+
+    if (cmd.findOption( "--is-root-cert" ))
+    {
+        const char *cert_filename = NULL;
+        app.checkValue( cmd.getValue( cert_filename ) );
+
+        cond = tlsOptions.isRootCertificate(cert_filename);
+        if (cond.good())
+        {
+          COUT << "Certificate '" << cert_filename << "' is a valid, self-signed root CA." << OFendl;
+          return EXITCODE_NO_ERROR;
+        }
+        else
+        {
+          COUT << "Certificate '" << cert_filename << "' is not a valid, self-signed root CA." << OFendl;
+          return EXITCODE_INVALID_INPUT_FILE;
+        }
+    }
+
+#endif
+
 #ifdef PRIVATE_ECHOSCU_CODE
     PRIVATE_ECHOSCU_CODE
 #endif
@@ -326,8 +374,8 @@ main(int argc, char *argv[])
     int presentationContextID = 1; /* odd byte value 1, 3, 5, .. 255 */
     for (unsigned long ii=0; ii<opt_numPresentationCtx; ii++)
     {
-        cond = ASC_addPresentationContext(params, presentationContextID, UID_VerificationSOPClass,
-                 transferSyntaxes, OFstatic_cast(int, opt_numXferSyntaxes));
+        cond = ASC_addPresentationContext(params, OFstatic_cast(T_ASC_PresentationContextID, presentationContextID), 
+                 UID_VerificationSOPClass, transferSyntaxes, OFstatic_cast(int, opt_numXferSyntaxes));
         presentationContextID += 2;
         if (cond.bad())
         {

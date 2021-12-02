@@ -23,11 +23,10 @@
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 #include "dcmtk/dcmtls/tlslayer.h"
 #include "dcmtk/dcmtls/tlsdefin.h"
+#include "dcmtk/dcmtls/tlscond.h"
+#include "dcmtk/ofstd/ofdiag.h"      /* for DCMTK_DIAGNOSTIC macros */
 
 #ifdef WITH_OPENSSL
-
-#define INCLUDE_CSTDLIB
-#include "dcmtk/ofstd/ofstdinc.h"
 
 BEGIN_EXTERN_C
 #ifdef HAVE_WINDOWS_H
@@ -39,26 +38,42 @@ BEGIN_EXTERN_C
 #include <openssl/rand.h>
 #include <openssl/err.h>
 #include <openssl/dh.h>
+#include <openssl/x509_vfy.h>
 END_EXTERN_C
+
+#ifndef X509_V_ERR_UNSPECIFIED
+#define X509_V_ERR_UNSPECIFIED 1
+#endif
 
 #include "dcmtk/dcmtls/tlslayer.h"
 #include "dcmtk/dcmtls/tlstrans.h"
 #include "dcmtk/dcmnet/dicom.h"
+#include "dcmtk/ofstd/ofrand.h"
 
-#ifdef HAVE_SSL_CTX_GET0_PARAM
+#ifdef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_GET0_PARAM
 #define DCMTK_SSL_CTX_get0_param SSL_CTX_get0_param
 #else
-#define DCMTK_SSL_CTX_get0_param(A) A->param;
+#define DCMTK_SSL_CTX_get0_param(A) (A)->param;
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
+#ifndef HAVE_OPENSSL_PROTOTYPE_X509_GET_SIGNATURE_NID
 #define X509_get_signature_nid(x509) OBJ_obj2nid((x509)->sig_alg->algorithm)
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+#ifndef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_GET_CERT_STORE
 #define SSL_CTX_get_cert_store(ctx) (ctx)->cert_store
+#endif
+
+#ifndef HAVE_OPENSSL_PROTOTYPE_EVP_PKEY_BASE_ID
 #define EVP_PKEY_base_id(key) EVP_PKEY_type((key)->type)
+#endif
+
+#ifndef HAVE_OPENSSL_PROTOTYPE_DH_BITS
 #define DH_bits(dh) BN_num_bits((dh)->p)
+#endif
+
+#ifndef HAVE_OPENSSL_PROTOTYPE_X509_STORE_GET0_PARAM
+#define X509_STORE_get0_param(A) (A)->param;
 #endif
 
 extern "C" int DcmTLSTransportLayer_certificateValidationCallback(int ok, X509_STORE_CTX *storeContext);
@@ -91,7 +106,7 @@ OFBool DcmTLSTransportLayer::setBuiltInDHParameters()
   BIO *bio = BIO_new_mem_buf(dh2048_p, sizeof(dh2048_p));
   if (bio)
   {
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#ifdef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET0_TMP_DH_PKEY
     EVP_PKEY *dhparams = PEM_read_bio_Parameters(bio,NULL);
     BIO_free(bio);
     if (dhparams)
@@ -143,7 +158,7 @@ int DcmTLSTransportLayer_passwordCallback(char *buf, int size, int /* rwflag */,
 
 // The TLS Supported Elliptic Curves extension (RFC 4492) is only supported in OpenSSL 1.0.2 and newer.
 // When compiling with OpenSSL 1.0.1, we are not using computeEllipticCurveList().
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L && !defined(LIBRESSL_VERSION_NUMBER)
+#ifdef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET1_CURVES
 
 /** determine the list of elliptic curves supported by the OpenSSL library
  *  for use with the TLS elliptic curve extension.
@@ -173,12 +188,14 @@ static void computeEllipticCurveList(OFVector<int>& ecvector)
   };
 
   // create  a SSL context object
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+#ifndef HAVE_OPENSSL_PROTOTYPE_TLS_METHOD
    SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
    if (ctx) SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2|SSL_OP_NO_SSLv3);
 #else
    SSL_CTX *ctx = SSL_CTX_new(TLS_method());
+#ifdef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET_SECURITY_LEVEL
    if (ctx) SSL_CTX_set_security_level(ctx, 0);
+#endif
 #endif
   if (ctx)
   {
@@ -198,7 +215,7 @@ static void computeEllipticCurveList(OFVector<int>& ecvector)
   }
 }
 
-#endif
+#endif /* HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET1_CURVES */
 
 
 DcmTLSTransportLayer::DcmTLSTransportLayer()
@@ -210,6 +227,10 @@ DcmTLSTransportLayer::DcmTLSTransportLayer()
 {
 }
 
+// Depending on the OpenSSL version used, SSL_CTX_set_tmp_ecdh() will
+// cause this warning to be issued. In any case, this can safely be ignored.
+#include DCMTK_DIAGNOSTIC_IGNORE_CONST_EXPRESSION_WARNING
+
 DcmTLSTransportLayer::DcmTLSTransportLayer(T_ASC_NetworkRole networkRole, const char *randFile, OFBool initOpenSSL)
 : DcmTransportLayer()
 , transportLayerContext(NULL)
@@ -220,7 +241,7 @@ DcmTLSTransportLayer::DcmTLSTransportLayer(T_ASC_NetworkRole networkRole, const 
    if (initOpenSSL) initializeOpenSSL();
    if (randFile) seedPRNG(randFile);
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+#ifndef HAVE_OPENSSL_PROTOTYPE_TLS_METHOD
    // on versions of OpenSSL older than 1.1.0, we use the
    // SSLv23 methods and not the TLSv1 methods because the latter
    // only accept TLS 1.0 and prevent the negotiation of newer
@@ -258,16 +279,18 @@ DcmTLSTransportLayer::DcmTLSTransportLayer(T_ASC_NetworkRole networkRole, const 
        break;
    }
 
+#ifdef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET_SECURITY_LEVEL
    // starting with OpenSSL 1.1.0, we explicitly need to set the security level to 0
    // if we want to support any of the NULL ciphersuites. Since we manage the list
    // of supported ciphersuites ourselves and prevent a mix of NULL and non-NULL
    // ciphersuites, this is safe.
    if (transportLayerContext) SSL_CTX_set_security_level(transportLayerContext, 0);
- #endif
+#endif
+#endif /* HAVE_OPENSSL_PROTOTYPE_TLS_METHOD */
 
    if (transportLayerContext == NULL)
    {
-      const char *result = ERR_reason_error_string(ERR_peek_error());
+      const char *result = ERR_reason_error_string(ERR_get_error());
       if (result == NULL) result = "unknown error in SSL_CTX_new()";
       DCMTLS_ERROR("unable to create TLS transport layer: " << result);
    }
@@ -277,9 +300,20 @@ DcmTLSTransportLayer::DcmTLSTransportLayer(T_ASC_NetworkRole networkRole, const 
      if (!setBuiltInDHParameters())
        DCMTLS_ERROR("unable to create Diffie-Hellman parameters.");
 
+     // set a random 32-bit number as TLS session ID
+     OFRandom rnd;
+     Uint32 session_id = rnd.getRND32();
+     if (0 == SSL_CTX_set_session_id_context(transportLayerContext, OFreinterpret_cast(const unsigned char *, &session_id), sizeof(session_id)))
+     {
+       DCMTLS_ERROR("unable to set TLS session ID context.");
+     }
+
+     // disable session caching (and, thus, session re-use)
+     SSL_CTX_set_session_cache_mode(transportLayerContext, SSL_SESS_CACHE_OFF);
+
      // create Elliptic Curve DH parameters
 #ifndef OPENSSL_NO_ECDH
-#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
+#ifndef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET_ECDH_AUTO
      // we create ECDH parameters for the NIST P-256 (secp256r1) curve
      // as recommended by BCP 195.
      EC_KEY  *ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
@@ -296,13 +330,13 @@ DcmTLSTransportLayer::DcmTLSTransportLayer(T_ASC_NetworkRole networkRole, const 
     {
       DCMTLS_ERROR("unable to create Elliptic-Curve Diffie-Hellman parameters.");
     }
-#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+#endif /* HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET_ECDH_AUTO */
 #endif /* OPENSSL_NO_ECDH */
 
     // set default certificate verification strategy
     setCertificateVerification(DCV_requireCertificate);
 
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L && !defined(LIBRESSL_VERSION_NUMBER)
+#if HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET1_SIGALGS
     // The TLS 1.2 Signature Algorithms extension is only supported in OpenSSL 1.0.2 and newer.
 
     if (networkRole != NET_ACCEPTOR)
@@ -313,7 +347,7 @@ DcmTLSTransportLayer::DcmTLSTransportLayer(T_ASC_NetworkRole networkRole, const 
       // support for SHA-384 and SHA-512.
 
       const int slist[] = {NID_sha256, EVP_PKEY_RSA,     NID_sha384, EVP_PKEY_RSA,     NID_sha512, EVP_PKEY_RSA,
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L
+#ifdef HAVE_OPENSSL_PROTOTYPE_EVP_PKEY_RSA_PSS
                            // Connections between a client and a server that both use OpenSSL 1.1.1
                            // will fail unless RSA-PSS is also offered as a signature algorithm.
                            NID_sha256, EVP_PKEY_RSA_PSS, NID_sha384, EVP_PKEY_RSA_PSS, NID_sha512, EVP_PKEY_RSA_PSS,
@@ -327,6 +361,9 @@ DcmTLSTransportLayer::DcmTLSTransportLayer(T_ASC_NetworkRole networkRole, const 
       }
     }
 
+#endif /* HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET1_SIGALGS */
+
+#if HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET1_CURVES
     // The TLS Supported Elliptic Curves extension (RFC 4492) is only supported in OpenSSL 1.0.2 and newer.
 
     // BCP 195: Both clients and servers SHOULD include the "Supported Elliptic Curves" extension.
@@ -342,7 +379,7 @@ DcmTLSTransportLayer::DcmTLSTransportLayer(T_ASC_NetworkRole networkRole, const 
         DCMTLS_ERROR("unable to configure the TLS Supported Elliptic Curves extension.");
       }
     }
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
+#endif /* HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET1_CURVES */
 
     if (NET_REQUESTOR != networkRole)
     {
@@ -356,10 +393,10 @@ DcmTLSTransportLayer::DcmTLSTransportLayer(T_ASC_NetworkRole networkRole, const 
         DCMTLS_ERROR("unable to configure the TLS layer to select ciphersuites by server preference.");
       }
     }
-
   } /* transportLayerContext != NULL */
 }
 
+// move constructor
 DcmTLSTransportLayer::DcmTLSTransportLayer(OFrvalue_ref(DcmTLSTransportLayer) rhs)
 : DcmTransportLayer(OFrvalue_ref_upcast(DcmTransportLayer, rhs))
 , transportLayerContext(rhs.transportLayerContext)
@@ -369,6 +406,7 @@ DcmTLSTransportLayer::DcmTLSTransportLayer(OFrvalue_ref(DcmTLSTransportLayer) rh
   OFrvalue_access(rhs).transportLayerContext = NULL;
 }
 
+// move assignment
 DcmTLSTransportLayer& DcmTLSTransportLayer::operator=(OFrvalue_ref(DcmTLSTransportLayer) rhs)
 {
   if (this != &rhs)
@@ -410,7 +448,7 @@ OFBool DcmTLSTransportLayer::setTempDHParameters(const char *filename)
   BIO *bio = BIO_new_file(filename,"r");
   if (bio)
   {
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#ifdef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET0_TMP_DH_PKEY
     EVP_PKEY *dh = PEM_read_bio_Parameters(bio,NULL);
     BIO_free(bio);
     if (dh)
@@ -463,9 +501,6 @@ OFBool DcmTLSTransportLayer::setTempDHParameters(const char *filename)
   return OFFalse;
 }
 
-
-
-
 void DcmTLSTransportLayer::setPrivateKeyPasswd(const char *thePasswd)
 {
   if (thePasswd) privateKeyPasswd = thePasswd;
@@ -512,7 +547,7 @@ void DcmTLSTransportLayer::setCertificateVerification(DcmCertificateVerification
   return;
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::activateCipherSuites()
+OFCondition DcmTLSTransportLayer::activateCipherSuites()
 {
   OFString cslist;
   ciphersuites.getListOfCipherSuitesForOpenSSL(cslist, (role != NET_REQUESTOR));
@@ -520,14 +555,12 @@ DcmTransportLayerStatus DcmTLSTransportLayer::activateCipherSuites()
   {
     if (!SSL_CTX_set_cipher_list(transportLayerContext, cslist.c_str()))
     {
-      const char *err = ERR_reason_error_string(ERR_peek_error());
-      if (err) DCMTLS_ERROR("OpenSSL error: " << err);
-      return TCS_tlsError;
+      return convertOpenSSLError(ERR_get_error(), OFTrue);
     }
 
     SSL_CTX_set_options(transportLayerContext, ciphersuites.getTLSOptions());
 
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
+#ifdef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_SET_MAX_PROTO_VERSION
     // when compiling with OpenSSL 1.1.1 or newer, set the maximum supported
     // TLS protocol version to TLS 1.2 if required (i.e. for the historic
     // security profiles, which would otherwise show unexpected behaviour).
@@ -536,23 +569,21 @@ DcmTransportLayerStatus DcmTLSTransportLayer::activateCipherSuites()
       SSL_CTX_set_max_proto_version(transportLayerContext, TLS1_2_VERSION);
     }
 #endif
-  } else return TCS_illegalCall;
+  } else return EC_IllegalCall;
 
-  return TCS_ok;
+  return EC_Normal;
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::setCipherSuites(const char *suites)
+OFCondition DcmTLSTransportLayer::setCipherSuites(const char *suites)
 {
   if (transportLayerContext && suites)
   {
     if (!SSL_CTX_set_cipher_list(transportLayerContext, suites))
     {
-      const char *err = ERR_reason_error_string(ERR_peek_error());
-      if (err) DCMTLS_ERROR("OpenSSL error: " << err);
-      return TCS_tlsError;
+      return convertOpenSSLError(ERR_get_error(), OFTrue);
     }
-  } else return TCS_illegalCall;
-  return TCS_ok;
+  } else return EC_IllegalCall;
+  return EC_Normal;
 }
 
 DcmTLSTransportLayer::~DcmTLSTransportLayer()
@@ -560,29 +591,29 @@ DcmTLSTransportLayer::~DcmTLSTransportLayer()
   clear();
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::setPrivateKeyFile(const char *fileName, DcmKeyFileFormat fileType)
+OFCondition DcmTLSTransportLayer::setPrivateKeyFile(const char *fileName, DcmKeyFileFormat fileType)
 {
   if (transportLayerContext)
   {
     if (0 >= SSL_CTX_use_PrivateKey_file(transportLayerContext, fileName, lookupOpenSSLCertificateFormat(fileType)))
     {
-      const char *err = ERR_reason_error_string(ERR_peek_error());
-      if (err) DCMTLS_ERROR("OpenSSL error: " << err);
-      return TCS_tlsError;
+      return convertOpenSSLError(ERR_get_error(), OFTrue);
     }
-  } else return TCS_illegalCall;
-  return TCS_ok;
+  } else return EC_IllegalCall;
+  return EC_Normal;
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::setCertificateFile(const char *fileName, DcmKeyFileFormat fileType)
+OFCondition DcmTLSTransportLayer::setCertificateFile(const char *fileName, DcmKeyFileFormat fileType)
 {
   if (transportLayerContext)
   {
+    // we load the first certificate from the file and check the key length
+    // and hash key against RFC 7525 recommendations.
     int result = 0;
     X509 *certificate = loadCertificateFile(fileName, fileType);
     if (certificate)
     {
-      // TODO: Check if the certificate is RSA, and if so, if the public key is >= 2048 bits
+      // Check if the certificate is RSA, and if so, if the public key is >= 2048 bits
       int bits = getRSAKeySize(certificate);
       if ((bits > 0) && (bits < 2048))
       {
@@ -595,18 +626,29 @@ DcmTransportLayerStatus DcmTLSTransportLayer::setCertificateFile(const char *fil
         DCMTLS_WARN("Certificate hash key not SHA-256: RFC 7525 recommends the use of SHA-256 for RSA certificates, but certificate file '"
           << fileName << "' uses '" << hash << "'.");
       }
-      result = SSL_CTX_use_certificate(transportLayerContext, certificate); // copies certificate into context
+
+      if (fileType == DCF_Filetype_PEM)
+      {
+        // This will load the file again, this time processing multiple certificates
+        // that might be present, establishing a full certificate chain.
+        // This function only works with PEM files.
+        result = SSL_CTX_use_certificate_chain_file(transportLayerContext, fileName);
+      }
+      else
+      {
+        // copy certificate into the SSL context
+        result = SSL_CTX_use_certificate(transportLayerContext, certificate);
+      }
       X509_free(certificate);
+
     } else result = -1;
 
     if (result <= 0)
     {
-      const char *err = ERR_reason_error_string(ERR_peek_error());
-      if (err) DCMTLS_ERROR("OpenSSL error: " << err);
-      return TCS_tlsError;
+      return convertOpenSSLError(ERR_get_error(), OFTrue);
     }
-  } else return TCS_illegalCall;
-  return TCS_ok;
+  } else return EC_IllegalCall;
+  return EC_Normal;
 }
 
 OFBool DcmTLSTransportLayer::checkPrivateKeyMatchesCertificate()
@@ -618,55 +660,79 @@ OFBool DcmTLSTransportLayer::checkPrivateKeyMatchesCertificate()
   return OFFalse;
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::addVerificationFlags(unsigned long flags)
+OFCondition DcmTLSTransportLayer::addVerificationFlags(unsigned long flags)
 {
   X509_VERIFY_PARAM* const parameter = DCMTK_SSL_CTX_get0_param(transportLayerContext);
-  return parameter && X509_VERIFY_PARAM_set_flags(parameter,flags) ? TCS_ok : TCS_unspecifiedError;
+  return parameter && X509_VERIFY_PARAM_set_flags(parameter,flags) ? EC_Normal : DCMTLS_EC_FailedToSetVerificationMode;
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::addTrustedCertificateFile(const char *fileName, DcmKeyFileFormat fileType)
+OFCondition DcmTLSTransportLayer::setCRLverification(DcmTLSCRLVerification crlmode)
+{
+  X509_VERIFY_PARAM* const parameter = DCMTK_SSL_CTX_get0_param(transportLayerContext);
+  if (parameter)
+  {
+    unsigned long flags = X509_VERIFY_PARAM_get_flags(parameter);
+    switch (crlmode)
+    {
+      case TCR_noCRL:
+        flags &= ~X509_V_FLAG_CRL_CHECK;
+        flags &= ~X509_V_FLAG_CRL_CHECK_ALL;
+        break;
+      case TCR_checkLeafCRL:
+        flags |= X509_V_FLAG_CRL_CHECK;
+        flags &= ~X509_V_FLAG_CRL_CHECK_ALL;
+        break;
+      case TCR_checkAllCRL:
+        flags |= X509_V_FLAG_CRL_CHECK;
+        flags |= X509_V_FLAG_CRL_CHECK_ALL;
+        break;
+    }
+    return X509_VERIFY_PARAM_set_flags(parameter,flags) ? EC_Normal : DCMTLS_EC_FailedToSetVerificationMode;
+  }
+  return EC_IllegalCall;
+}
+
+OFCondition DcmTLSTransportLayer::addTrustedCertificateFile(const char *fileName, DcmKeyFileFormat fileType)
 {
   if (transportLayerContext)
   {
     X509_LOOKUP *x509_lookup = X509_STORE_add_lookup(SSL_CTX_get_cert_store(transportLayerContext), X509_LOOKUP_file());
     if (x509_lookup == NULL)
     {
-      const char *err = ERR_reason_error_string(ERR_peek_error());
-      if (err) DCMTLS_ERROR("OpenSSL error: " << err);
-      return TCS_tlsError;
+      return convertOpenSSLError(ERR_get_error(), OFTrue);
     }
     if (! X509_LOOKUP_load_file(x509_lookup, fileName, lookupOpenSSLCertificateFormat(fileType)))
     {
-      const char *err = ERR_reason_error_string(ERR_peek_error());
-      if (err) DCMTLS_ERROR("OpenSSL error: " << err);
-      return TCS_tlsError;
+      return convertOpenSSLError(ERR_get_error(), OFTrue);
     }
-  } else return TCS_illegalCall;
-  return TCS_ok;
+  } else return EC_IllegalCall;
+  return EC_Normal;
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::addTrustedCertificateDir(const char *pathName, DcmKeyFileFormat fileType)
+OFCondition DcmTLSTransportLayer::addCertificateRevocationList(const char *fileName, DcmKeyFileFormat fileType)
+{
+  // OpenSSL uses the same X509_LOOKUP_load_file() function for both certificates and CRLs
+  return addTrustedCertificateFile(fileName, fileType);
+}
+
+OFCondition DcmTLSTransportLayer::addTrustedCertificateDir(const char *pathName, DcmKeyFileFormat fileType)
 {
   if (transportLayerContext)
   {
     X509_LOOKUP *x509_lookup = X509_STORE_add_lookup(SSL_CTX_get_cert_store(transportLayerContext), X509_LOOKUP_hash_dir());
     if (x509_lookup == NULL)
     {
-      const char *err = ERR_reason_error_string(ERR_peek_error());
-      if (err) DCMTLS_ERROR("OpenSSL error: " << err);
-      return TCS_tlsError;
+      return convertOpenSSLError(ERR_get_error(), OFTrue);
     }
     if (! X509_LOOKUP_add_dir(x509_lookup, pathName, lookupOpenSSLCertificateFormat(fileType)))
     {
-      const char *err = ERR_reason_error_string(ERR_peek_error());
-      if (err) DCMTLS_ERROR("OpenSSL error: " << err);
-      return TCS_tlsError;
+      return convertOpenSSLError(ERR_get_error(), OFTrue);
     }
-  } else return TCS_illegalCall;
-  return TCS_ok;
+  } else return EC_IllegalCall;
+  return EC_Normal;
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::addTrustedClientCertificateFile(const char *fileName)
+OFCondition DcmTLSTransportLayer::addTrustedClientCertificateFile(const char *fileName)
 {
   if (transportLayerContext)
   {
@@ -683,8 +749,8 @@ DcmTransportLayerStatus DcmTLSTransportLayer::addTrustedClientCertificateFile(co
     }
     sk_X509_NAME_pop_free(newCaNames,X509_NAME_free);
     SSL_CTX_set_client_CA_list(transportLayerContext,caNames);
-  } else return TCS_illegalCall;
-  return TCS_ok;
+  } else return EC_IllegalCall;
+  return EC_Normal;
 }
 
 DcmTransportConnection *DcmTLSTransportLayer::createConnection(DcmNativeSocketType openSocket, OFBool useSecureLayer)
@@ -722,7 +788,7 @@ void DcmTLSTransportLayer::seedPRNG(const char *randFile)
 #endif
   if (randFile)
   {
-#ifdef HAVE_RAND_EGD
+#ifdef HAVE_OPENSSL_PROTOTYPE_RAND_EGD
     if (RAND_egd(randFile) <= 0)
 #endif
     {
@@ -824,7 +890,7 @@ OFString DcmTLSTransportLayer::dumpX509Certificate(X509 *peerCertificate)
   }
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::setTLSProfile(DcmTLSSecurityProfile profile)
+OFCondition DcmTLSTransportLayer::setTLSProfile(DcmTLSSecurityProfile profile)
 {
   return ciphersuites.setTLSProfile(profile);
 }
@@ -834,7 +900,7 @@ void DcmTLSTransportLayer::clearTLSProfile()
   ciphersuites.clearTLSProfile();
 }
 
-DcmTransportLayerStatus DcmTLSTransportLayer::addCipherSuite(const char *suite)
+OFCondition DcmTLSTransportLayer::addCipherSuite(const char *suite)
 {
   return ciphersuites.addCipherSuite(suite);
 }
@@ -925,6 +991,195 @@ X509 *DcmTLSTransportLayer::loadCertificateFile(const char *fileName, DcmKeyFile
     BIO_free(in);
   }
   return result;
+}
+
+OFCondition DcmTLSTransportLayer::verifyClientCertificate(const char *fileName, DcmKeyFileFormat fileType)
+{
+  OFCondition result = EC_IllegalCall;
+  if (transportLayerContext && fileName)
+  {
+    X509_STORE *trustStore = SSL_CTX_get_cert_store(transportLayerContext);
+    if (trustStore)
+    {
+
+      // for some reason, the SSL context and the X509_STORE within that
+      // context have different X509_VERIFY_PARAM parameter sets, in particular
+      // they have different verification flags. We copy the flags from the
+      // SSL context to the X509_STORE and restore the original value
+      // after certificate verification.
+      X509_VERIFY_PARAM *vparam_ssl = DCMTK_SSL_CTX_get0_param(transportLayerContext);
+      X509_VERIFY_PARAM *vparam_store = X509_STORE_get0_param(trustStore);
+      unsigned long ssl_vparam_flags = 0;
+      unsigned long store_vparam_flags = 0;
+      if (vparam_ssl) ssl_vparam_flags = X509_VERIFY_PARAM_get_flags(vparam_ssl);
+      if (vparam_store)
+      {
+        store_vparam_flags = X509_VERIFY_PARAM_get_flags(vparam_store);
+        X509_VERIFY_PARAM_set_flags(vparam_store, ssl_vparam_flags);
+      }
+
+      X509_STORE_CTX *storeCtx = X509_STORE_CTX_new();
+      if (storeCtx)
+      {
+        // we have a trust store and a context object for certificate verification.
+        // Now let's load the client certificate chain
+        X509 *clientCert = NULL;
+        STACK_OF(X509) *chain = sk_X509_new(NULL);
+        BIO *in=BIO_new_file(fileName, "rb");
+        if (in)
+        {
+          if (fileType == DCF_Filetype_ASN1)
+          {
+            clientCert = d2i_X509_bio(in,NULL);
+            if (clientCert == NULL)
+            {
+              result = DCMTLS_EC_FailedToLoadCertificate(fileName);
+              DCMTLS_ERROR("Not a DER certificate file: '" << fileName << "'");
+            }
+          }
+          else if (fileType == DCF_Filetype_PEM)
+          {
+            clientCert = PEM_read_bio_X509(in, NULL, NULL, NULL);
+            if (clientCert == NULL)
+            {
+              result = DCMTLS_EC_FailedToLoadCertificate(fileName);
+              DCMTLS_ERROR("Not a PEM certificate file: '" << fileName << "'");
+            }
+            // in a PEM file, a certificate chain may follow after the client certificate.
+            X509 *chainCert = NULL;
+            while (NULL != (chainCert = PEM_read_bio_X509(in, NULL, NULL, NULL)))
+            {
+              sk_X509_push(chain, chainCert);
+            }
+          }
+          BIO_free(in);
+        }
+        else
+        {
+          result = DCMTLS_EC_FailedToLoadCertificate(fileName);
+          DCMTLS_ERROR("Cannot open certificate file '" << fileName << "'");
+        }
+        if (clientCert)
+        {
+          if (X509_STORE_CTX_init(storeCtx, trustStore, clientCert, chain))
+          {
+            if (X509_verify_cert(storeCtx))
+            {
+              result = EC_Normal;
+            }
+            else
+            {
+              result = convertOpenSSLX509VerificationError(X509_STORE_CTX_get_error(storeCtx), OFTrue);
+            }
+          }
+          else
+          {
+            result = DCMTLS_EC_CertStoreCtxInitFailed;
+            DCMTLS_ERROR("certificate store context initialization failed");
+          }
+          X509_free(clientCert);
+        }
+
+        X509_STORE_CTX_free(storeCtx);
+        sk_X509_pop_free(chain, X509_free);
+      }
+
+      // restore original value of X509 store flags
+      if (vparam_store)
+      {
+        X509_VERIFY_PARAM_set_flags(vparam_store, store_vparam_flags);
+      }
+
+    }
+  }
+  return result;
+}
+
+OFCondition DcmTLSTransportLayer::isRootCertificate(const char *fileName, DcmKeyFileFormat fileType)
+{
+  OFCondition result = EC_IllegalCall;
+  if (fileName)
+  {
+    X509_STORE *trustStore = X509_STORE_new();
+    X509_STORE_CTX *storeCtx = X509_STORE_CTX_new();
+    if (trustStore && storeCtx)
+    {
+      // we have a trust store and a context object for certificate verification.
+      // Now let's load the client certificate
+      X509 *clientCert = loadCertificateFile(fileName, fileType);
+      if (clientCert == NULL)
+      {
+        result = DCMTLS_EC_FailedToLoadCertificate(fileName);
+        DCMTLS_ERROR("Cannot read certificate file '" << fileName << "'");
+      }
+      else
+      {
+        if (X509_STORE_add_cert(trustStore, clientCert))
+        {
+          if (X509_STORE_CTX_init(storeCtx, trustStore, clientCert, NULL))
+          {
+            if (X509_verify_cert(storeCtx)) result = EC_Normal;
+              else result = convertOpenSSLX509VerificationError(X509_STORE_CTX_get_error(storeCtx), OFFalse);
+          } else result = DCMTLS_EC_CertStoreCtxInitFailed;
+        } else result = DCMTLS_EC_FailedToLoadCertificate(fileName);;
+      }
+      X509_free(clientCert);
+    }
+    if (storeCtx) X509_STORE_CTX_free(storeCtx);
+    if (trustStore) X509_STORE_free(trustStore);
+  }
+  return result;
+}
+
+OFCondition DcmTLSTransportLayer::convertOpenSSLError(unsigned long errorCode, OFBool logAsError)
+{
+    if (errorCode == 0) return EC_Normal;
+
+    const char *err = ERR_reason_error_string(errorCode);
+    if (err == NULL) err = "OpenSSL error";
+
+    // we generate special error codes for SSL errors
+    if (ERR_LIB_SSL == ERR_GET_LIB(errorCode))
+    {
+
+      OFOStringStream os;
+      os << "TLS error: " << err;
+
+      OFCondition cond;
+      OFSTRINGSTREAM_GETSTR( os, c )
+      if (logAsError) DCMTLS_ERROR(c);
+      cond = makeOFCondition(OFM_dcmtls, DCMTLS_EC_SSL_Offset + ERR_GET_REASON(errorCode), OF_error,  c);
+      OFSTRINGSTREAM_FREESTR( c )
+
+      return cond;
+    }
+    else
+    {
+      if (logAsError) DCMTLS_ERROR("OpenSSL error " << STD_NAMESPACE hex << STD_NAMESPACE setfill('0') << STD_NAMESPACE setw(8) << errorCode << ": " << err);
+
+      // we return a generic OpenSSL error for all other OpenSSL sublibraries
+      return DCMTLS_EC_GenericOpenSSLError(errorCode);
+    }
+}
+
+OFCondition DcmTLSTransportLayer::convertOpenSSLX509VerificationError(int errorCode, OFBool logAsError)
+{
+    if (errorCode == 0) return EC_Normal;
+
+    // check if this is a known error code, map to "unspecified error" otherwise and print a warning
+    if (errorCode > DCMTLS_EC_X509Verify_Max)
+    {
+      DCMTLS_WARN("Unsupported OpenSSL X.509 verification error code " << errorCode << "; mapped to DCMTLS_EC_X509VerifyUnspecified.");
+      errorCode = X509_V_ERR_UNSPECIFIED;
+    }
+
+    // retrieve error string
+    const char *err = X509_verify_cert_error_string(errorCode);
+    if (err == NULL) err = "unspecified error.";
+
+    if (logAsError) DCMTLS_ERROR("certificate verification failed: " << err);
+
+    return makeOFCondition(OFM_dcmtls, OFstatic_cast(Uint16, DCMTLS_EC_X509Verify_Offset + errorCode), OF_error,  err);
 }
 
 void DcmTLSTransportLayer::initializeOpenSSL()

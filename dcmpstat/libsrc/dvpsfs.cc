@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1998-2018, OFFIS e.V.
+ *  Copyright (C) 1998-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -48,13 +48,10 @@
 #include "dcmtk/dcmpstat/dvpsri.h"      /* for DVPSReferencedImage, needed by MSVC5 with STL */
 
 
-#define INCLUDE_CSTRING
-#include "dcmtk/ofstd/ofstdinc.h"
-
 /* --------------- class DVPSFilmSession --------------- */
 
 DVPSFilmSession::DVPSFilmSession(Uint16 illumin, Uint16 reflection)
-: sopInstanceUID(NULL)
+: sopInstanceUID()
 , numberOfCopies(DCM_NumberOfCopies)
 , printPriority(DCM_PrintPriority)
 , mediumType(DCM_MediumType)
@@ -797,8 +794,15 @@ OFCondition DVPSFilmSession::addPresentationLUTReference(DcmItem& dset)
   DcmElement *delem=NULL;
   OFCondition result = EC_Normal;
 
-  ADD_TO_DATASET(DcmUnsignedShort, illumination)
-  ADD_TO_DATASET(DcmUnsignedShort, reflectedAmbientLight)
+  if (illumination.getLength() > 0)
+  {
+    ADD_TO_DATASET(DcmUnsignedShort, illumination)
+  }
+
+  if (reflectedAmbientLight.getLength() > 0)
+  {
+    ADD_TO_DATASET(DcmUnsignedShort, reflectedAmbientLight)
+  }
 
   if (referencedPresentationLUTInstanceUID.getLength() > 0)
   {

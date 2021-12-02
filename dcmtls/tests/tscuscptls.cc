@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2019-2020, OFFIS e.V.
+ *  Copyright (C) 2019-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -17,25 +17,31 @@
  *
  *  Purpose: TLS test for classes DcmSCP and DcmSCPPool
  *
- *  Note: This test will fail after 2029-02-25 due to certificate expiry. 
+ *  Note: This test will fail after 2029-02-25 due to certificate expiry.
  *        The keys embedded in this file should be replaced then (see below).
  *
  */
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
-#define INCLUDE_CMATH
-#include "dcmtk/ofstd/ofstdinc.h"
 #include "dcmtk/ofstd/oftest.h"
 #include "dcmtk/ofstd/oftimer.h"
+#include "dcmtk/ofstd/ofrand.h"
 #include "dcmtk/oflog/consap.h"
 #include "dcmtk/dcmnet/scp.h"
 #include "dcmtk/dcmnet/scu.h"
 #include "dcmtk/dcmnet/scppool.h"
 #include "dcmtk/dcmnet/dcmlayer.h"
 #include "dcmtk/dcmtls/tlsscu.h"
+#include <cmath>
 
 #ifdef WITH_THREADS
+#ifdef WITH_OPENSSL
+
+#define BAILOUT(msg) do { \
+    OFCHECK_FAIL(msg); \
+    return; \
+} while (0)
 
 /** Method that ensures that the current thread is actually sleeping for the
  *  defined number of seconds (at least).
@@ -72,7 +78,8 @@ struct TestSCP: DcmSCP, OFThread
         DcmSCP(),
         m_listen_result(EC_NotYetImplemented), // value indicating "not set"
         m_set_stop_after_assoc(OFFalse),
-        m_set_stop_after_timeout(OFFalse)
+        m_set_stop_after_timeout(OFFalse),
+        m_is_running(OFFalse)
     {
     }
 
@@ -83,6 +90,7 @@ struct TestSCP: DcmSCP, OFThread
         m_listen_result = EC_NotYetImplemented;
         m_set_stop_after_assoc = OFFalse;
         m_set_stop_after_timeout = OFFalse;
+        m_is_running = OFFalse;
     }
 
     /** Overwrite method from DcmSCP in order to test feature to stop after current
@@ -109,12 +117,16 @@ struct TestSCP: DcmSCP, OFThread
     OFBool m_set_stop_after_assoc;
     /// If set, the SCP should stop after TCP timeout occurred in non-blocking mode
     OFBool m_set_stop_after_timeout;
+    /// indicates whether the thread is currently running
+    volatile OFBool m_is_running;
 
     /** Method called by OFThread to start SCP operation. Starts listen() loop of DcmSCP.
     */
     virtual void run()
     {
+        m_is_running = OFTrue;
         m_listen_result = listen();
+        m_is_running = OFFalse;
     }
 
 };
@@ -123,17 +135,26 @@ struct TestSCP: DcmSCP, OFThread
 
 struct TestPool : DcmSCPPool<>, OFThread
 {
-    OFCondition result;
+    OFCondition m_listen_result;
+    volatile OFBool m_is_running;
+
+    TestPool()
+    : DcmSCPPool<>()
+    , OFThread()
+    , m_listen_result(EC_NotYetImplemented)
+    , m_is_running(OFFalse)
+    { }
+
 protected:
     void run()
     {
-        result = listen();
+        m_is_running = OFTrue;
+        m_listen_result = listen();
+        m_is_running = OFFalse;
     }
 };
 
 // -------------- End of class TestPool -------------------------
-
-#ifdef WITH_OPENSSL
 
 struct TestTLSSCU : DcmTLSSCU, OFThread
 {
@@ -289,20 +310,20 @@ OFTEST_FLAGS(dcmtls_scp_tls, EF_None)
     initLogs();
 
     /// Init scp tls layer
-    DcmTransportLayerStatus result;
+    OFCondition result;
     DcmTLSTransportLayer scpTlsLayer(NET_ACCEPTOR, NULL, OFTrue);
     scpTlsLayer.setPrivateKeyPasswd(PRIVATE_KEY_PWD);
     result = scpTlsLayer.setPrivateKeyFile(PRIVATE_KEY_FILENAME, DCF_Filetype_PEM);
-    OFCHECK(result == TCS_ok);
+    OFCHECK(result.good());
     result = scpTlsLayer.setCertificateFile(PUBLIC_SELFSIGNED_CERT_FILENAME, DCF_Filetype_PEM);
-    OFCHECK(result == TCS_ok);
+    OFCHECK(result.good());
     OFCHECK(scpTlsLayer.checkPrivateKeyMatchesCertificate());
     scpTlsLayer.setCertificateVerification(DCV_ignoreCertificate);
 
     /// Init and run Scp server with tls
+    OFRandom rnd;
     TestSCP scp;
     DcmSCPConfig& config = scp.getConfig();
-    config.setPort(11112);
     config.setAETitle("ACCEPTOR");
     config.setACSETimeout(30);
     config.setConnectionTimeout(1);
@@ -315,10 +336,24 @@ OFTEST_FLAGS(dcmtls_scp_tls, EF_None)
     OFCHECK(config.addPresentationContext(UID_VerificationSOPClass, xfers, ASC_SC_ROLE_SCP).good());
 
     config.setTransportLayer(&scpTlsLayer);
-    scp.start();
 
     // Ensure server is up and listening
-    force_sleep(1);
+    int i = 0;
+    Uint16 port_number = 0;
+    OFMutex memory_barrier;
+    do
+    {
+      // generate a random port number between 61440 (0xF000) and 65535
+      port_number = 0xF000 + (rnd.getRND16() & 0xFFF);
+      config.setPort(port_number);
+      scp.start();
+      force_sleep(2); // wait 2 seconds for the SCP process to start
+      memory_barrier.lock();
+      memory_barrier.unlock();
+    }
+    while ((i++ < 5) && (! scp.m_is_running)); // try up to 5 port numbers before giving up
+
+    if (! scp.m_is_running) BAILOUT("Start of the SCP thread failed: " << scp.m_listen_result.text());
 
     // Configure SCU and run it against SCP
     DcmTLSSCU scu;
@@ -329,7 +364,7 @@ OFTEST_FLAGS(dcmtls_scp_tls, EF_None)
     scu.setPeerAETitle("ACCEPTOR");
     scu.setAETitle("REQUESTOR");
     scu.setPeerHostName("localhost");
-    scu.setPeerPort(11112);
+    scu.setPeerPort(port_number);
 
     scu.enableAuthentication(PRIVATE_KEY_FILENAME, PUBLIC_SELFSIGNED_CERT_FILENAME, PRIVATE_KEY_PWD, DCF_Filetype_PEM, DCF_Filetype_PEM);
     scu.setPeerCertVerification(DCV_ignoreCertificate);
@@ -357,20 +392,20 @@ OFTEST_FLAGS(dcmtls_scp_pool_tls, EF_None)
     initLogs();
 
     /// Init scp tls layer
-    DcmTransportLayerStatus result;
+    OFCondition result;
     DcmTLSTransportLayer scpTlsLayer(NET_ACCEPTOR, NULL, OFTrue);
     scpTlsLayer.setPrivateKeyPasswd(PRIVATE_KEY_PWD);
     result = scpTlsLayer.setPrivateKeyFile(PRIVATE_KEY_FILENAME, DCF_Filetype_PEM);
-    OFCHECK(result == TCS_ok);
+    OFCHECK(result.good());
     result = scpTlsLayer.setCertificateFile(PUBLIC_SELFSIGNED_CERT_FILENAME, DCF_Filetype_PEM);
-    OFCHECK(result == TCS_ok);
+    OFCHECK(result.good());
     OFCHECK(scpTlsLayer.checkPrivateKeyMatchesCertificate());
     scpTlsLayer.setCertificateVerification(DCV_ignoreCertificate);
 
     /// Init and run Scp server with tls
+    OFRandom rnd;
     TestPool pool;
     DcmSCPConfig& config = pool.getConfig();
-    config.setPort(11112);
     config.setAETitle("ACCEPTOR");
     config.setACSETimeout(30);
     config.setConnectionTimeout(1);
@@ -383,10 +418,23 @@ OFTEST_FLAGS(dcmtls_scp_pool_tls, EF_None)
     OFCHECK(config.addPresentationContext(UID_VerificationSOPClass, xfers, ASC_SC_ROLE_DEFAULT).good());
     config.setTransportLayer(&scpTlsLayer);
     pool.setMaxThreads(20);
-    pool.start();
 
     // Ensure server is up and listening
-    force_sleep(1);
+    int i = 0;
+    Uint16 port_number = 0;
+    OFMutex memory_barrier;
+    do
+    {
+      // generate a random port number between 61440 (0xF000) and 65535
+      port_number = 0xF000 + (rnd.getRND16() & 0xFFF);
+      config.setPort(port_number);
+      pool.start();
+      force_sleep(2); // wait 2 seconds for the SCP process to start
+      memory_barrier.lock();
+      memory_barrier.unlock();
+    }
+    while ((i++ < 5) && (! pool.m_is_running)); // try up to 5 port numbers before giving up
+    if (! pool.m_is_running) BAILOUT("Start of the SCP thread ppol failed: " << pool.m_listen_result.text());
 
     OFVector<TestTLSSCU*> scus(20);
     OFVector<DcmTLSTransportLayer*> scuTlsLayers;
@@ -400,7 +448,7 @@ OFTEST_FLAGS(dcmtls_scp_pool_tls, EF_None)
         (*it1)->setPeerAETitle("ACCEPTOR");
         (*it1)->setAETitle("REQUESTOR");
         (*it1)->setPeerHostName("localhost");
-        (*it1)->setPeerPort(11112);
+        (*it1)->setPeerPort(port_number);
         (*it1)->enableAuthentication(PRIVATE_KEY_FILENAME, PUBLIC_SELFSIGNED_CERT_FILENAME, PRIVATE_KEY_PWD, DCF_Filetype_PEM, DCF_Filetype_PEM);
         (*it1)->setPeerCertVerification(DCV_ignoreCertificate);
 

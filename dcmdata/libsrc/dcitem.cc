@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2020, OFFIS e.V.
+ *  Copyright (C) 1994-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -22,14 +22,7 @@
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CCTYPE
-#include "dcmtk/ofstd/ofstdinc.h"
-
 #include "dcmtk/dcmdata/dcitem.h"
-#include "dcmtk/ofstd/ofdefine.h"     /* for memzero() */
 #include "dcmtk/dcmdata/dcdeftag.h"   /* for name constants */
 #include "dcmtk/dcmdata/dcistrma.h"   /* for class DcmInputStream */
 #include "dcmtk/dcmdata/dcobject.h"
@@ -79,6 +72,8 @@
 #include "dcmtk/ofstd/ofstring.h"
 #include "dcmtk/ofstd/ofcast.h"
 #include "dcmtk/ofstd/ofstd.h"
+
+#include <cstring>                    /* for memset() */
 
 // ********************************
 
@@ -964,7 +959,7 @@ OFCondition DcmItem::computeGroupLengthAndPadding(const E_GrpLenEncoding glenc,
 
                 /* create an array of a corresponding size and set the array fields */
                 Uint8 * padBytes = new Uint8[padding];
-                memzero(padBytes, size_t(padding));
+                memset(padBytes, 0, size_t(padding));
 
                 /* set information in the above created padding element (size and actual value) */
                 paddingEl->putUint8Array(padBytes, padding);
@@ -2509,7 +2504,7 @@ OFCondition DcmItem::findAndGetUint8Array(const DcmTagKey& tagKey,
     if (count != NULL)
     {
         if (status.good())
-            *count = elem->getNumberOfValues();
+            *count = elem->getLength() / sizeof(Uint8);
         else
             *count = 0;
     }
@@ -2559,8 +2554,11 @@ OFCondition DcmItem::findAndGetUint16Array(const DcmTagKey& tagKey,
     if (count != NULL)
     {
         if (status.good())
-            *count = elem->getNumberOfValues();
-        else
+        {
+            /* don't use getNumberOfValues() because of OB/OW for pixel data
+             * and since AT uses two 16-bit integers per value */
+            *count = elem->getLength() / sizeof(Uint16);
+        } else
             *count = 0;
     }
     /* reset value */
@@ -2609,7 +2607,7 @@ OFCondition DcmItem::findAndGetSint16Array(const DcmTagKey& tagKey,
     if (count != NULL)
     {
         if (status.good())
-            *count = elem->getNumberOfValues();
+            *count = elem->getLength() / sizeof(Sint16);
         else
             *count = 0;
     }
@@ -2659,7 +2657,7 @@ OFCondition DcmItem::findAndGetUint32Array(const DcmTagKey& tagKey,
     if (count != NULL)
     {
         if (status.good())
-            *count = elem->getNumberOfValues();
+            *count = elem->getLength() / sizeof(Uint32);
         else
             *count = 0;
     }
@@ -2709,7 +2707,7 @@ OFCondition DcmItem::findAndGetSint32Array(const DcmTagKey& tagKey,
     if (count != NULL)
     {
         if (status.good())
-            *count = elem->getNumberOfValues();
+            *count = elem->getLength() / sizeof(Sint32);
         else
             *count = 0;
     }
@@ -2759,7 +2757,7 @@ OFCondition DcmItem::findAndGetUint64Array(const DcmTagKey& tagKey,
     if (count != NULL)
     {
         if (status.good())
-            *count = elem->getNumberOfValues();
+            *count = elem->getLength() / sizeof(Uint64);
         else
             *count = 0;
     }
@@ -2809,7 +2807,7 @@ OFCondition DcmItem::findAndGetSint64Array(const DcmTagKey& tagKey,
     if (count != NULL)
     {
         if (status.good())
-            *count = elem->getNumberOfValues();
+            *count = elem->getLength() / sizeof(Sint64);
         else
             *count = 0;
     }
@@ -2909,7 +2907,7 @@ OFCondition DcmItem::findAndGetFloat32Array(const DcmTagKey& tagKey,
     if (count != NULL)
     {
         if (status.good())
-            *count = elem->getNumberOfValues();
+            *count = elem->getLength() / sizeof(Float32);
         else
             *count = 0;
     }
@@ -2959,7 +2957,7 @@ OFCondition DcmItem::findAndGetFloat64Array(const DcmTagKey& tagKey,
     if (count != NULL)
     {
         if (status.good())
-            *count = elem->getNumberOfValues();
+            *count = elem->getLength() / sizeof(Float64);
         else
             *count = 0;
     }

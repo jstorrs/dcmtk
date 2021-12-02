@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1998-2020, OFFIS e.V.
+ *  Copyright (C) 1998-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -61,12 +61,6 @@
 #include "dcmtk/dcmpstat/dvpsri.h"    /* for DVPSReferencedImage, needed by MSVC5 with STL */
 #include "dcmtk/dcmqrdb/dcmqrdbi.h"   /* for DB_UpperMaxBytesPerStudy */
 #include "dcmtk/dcmqrdb/dcmqrdbs.h"   /* for DcmQueryRetrieveDatabaseStatus */
-
-#define INCLUDE_CSTDIO
-#define INCLUDE_CCTYPE
-#define INCLUDE_CMATH
-#define INCLUDE_UNISTD
-#include "dcmtk/ofstd/ofstdinc.h"
 
 BEGIN_EXTERN_C
 #ifdef HAVE_SYS_TYPES_H
@@ -2004,9 +1998,16 @@ int DVInterface::deleteImageFile(const char *filename)
 {
     if ((filename != NULL) && (pHandle != NULL))
     {
-        const char *pos;
-        if (((pos = strrchr(filename, OFstatic_cast(int, PATH_SEPARATOR))) == NULL) ||   // check whether image file resides in index.dat directory
-            (strncmp(filename, pHandle->getStorageArea(), pos - filename) == 0))
+        const char *pos = strrchr(filename, OFstatic_cast(int, PATH_SEPARATOR));
+#ifdef _WIN32
+        // Windows accepts both backslash and forward slash as path separators.
+        const char *pos2 = strrchr(filename, OFstatic_cast(int, '/'));
+
+        // if pos2 points to a character closer to the end of the string, use this instead of strPos
+        if ((pos == NULL) || ((pos2 != NULL) && (pos2 > pos))) pos = pos2;
+#endif
+        // check whether image file resides in index.dat directory
+        if ((pos == NULL) || (strncmp(filename, pHandle->getStorageArea(), pos - filename) == 0))
         {
 //            DB_deleteImageFile((/*const */char *)filename);
             if (unlink(filename) == 0)

@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2001-2020, OFFIS e.V.
+ *  Copyright (C) 2001-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -47,9 +47,7 @@
 // dcmimgle includes
 #include "dcmtk/dcmimgle/dcmimage.h"  /* for class DicomImage */
 
-#define INCLUDE_CMATH
-#include "dcmtk/ofstd/ofstdinc.h"
-
+#include <cmath>
 
 DJCodecEncoder::DJCodecEncoder()
 : DcmCodec()
@@ -174,15 +172,16 @@ OFCondition DJCodecEncoder::encode(
         // YCbCr color image
         result = encodeColorImage(OFTrue, OFreinterpret_cast(DcmItem*, dataset), toRepParam, pixSeq, djcp, compressionRatio);
         break;
-      case EPI_Unknown:
-        // unknown color model - bail out
-        result = EJ_UnsupportedPhotometricInterpretation;
-        break;
       case EPI_Missing:
         // photometric interpretation missing. If ACR-NEMA compatibility is activated, we treat this as MONOCHOME2, otherwise we report an error
         if (djcp->getAcrNemaCompatibility())
             result = encodeMonochromeImage(OFreinterpret_cast(DcmItem*, dataset), toRepParam, pixSeq, djcp, compressionRatio);
             else result = EJ_UnsupportedPhotometricInterpretation;
+        break;
+      case EPI_Unknown:
+      default:
+        // unknown color model - bail out
+        result = EJ_UnsupportedPhotometricInterpretation;
         break;
     }
 
@@ -491,7 +490,7 @@ OFCondition DJCodecEncoder::encodeTrueLossless(
   {
     DcmItem *datsetItem = OFreinterpret_cast(DcmItem*, dataset);
     double compressionRatio = 0.0;
-    const Uint16* pixelData;
+    const Uint16* pixelData = NULL;
     size_t length = 0;
     Uint16 bitsAllocated = 0;
     Uint16 bitsStored = 0;
@@ -508,7 +507,7 @@ OFCondition DJCodecEncoder::encodeTrueLossless(
     OFBool planConfSwitched = OFFalse; // true if planar configuration was toggled
     DcmOffsetList offsetList;
     OFString photometricInterpretation;
-    DcmElement *dummyElem;
+    DcmElement *dummyElem = NULL;
 
     // get relevant attributes for encoding from dataset
     result = datsetItem->findAndGetUint16(DCM_BitsStored, bitsStored);

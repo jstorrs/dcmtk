@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2019, OFFIS e.V.
+ *  Copyright (C) 1994-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -77,12 +77,6 @@
 
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
-
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CCTYPE
-#include "dcmtk/ofstd/ofstdinc.h"
 
 #ifdef HAVE_UNIX_H
 #if defined(macintosh) && defined (HAVE_WINSOCK_H)
@@ -177,7 +171,8 @@ DU_getStringDOElement(DcmItem *obj, DcmTagKey t, char *s, size_t bufsize)
             s[0] = '\0';
         } else {
             ec =  elem->getString(aString);
-            OFStandard::strlcpy(s, aString, bufsize);
+            if (ec == EC_Normal)
+                OFStandard::strlcpy(s, aString, bufsize);
         }
     }
     return (ec == EC_Normal);

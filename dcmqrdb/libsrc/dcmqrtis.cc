@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1993-2018, OFFIS e.V.
+ *  Copyright (C) 1993-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -29,6 +29,9 @@
 #include "dcmtk/dcmqrdb/dcmqrdbs.h"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmqrdb/dcmqropt.h"
+#include "dcmtk/ofstd/ofstdinc.h"
+#include <ctime>
+
 
 BEGIN_EXTERN_C
 #ifdef HAVE_SYS_STAT_H
@@ -288,7 +291,7 @@ TI_addSeriesEntry(TI_StudyEntry *study, DcmDataset *reply)
     series = (TI_SeriesEntry*) malloc(sizeof(TI_SeriesEntry));
     if (series == NULL) return OFFalse;
 
-    bzero((char*)series, sizeof(TI_SeriesEntry)); /* make sure its clean */
+    memset((char*)series, 0, sizeof(TI_SeriesEntry)); /* make sure its clean */
 
     /* extract info from reply */
     ok = DU_getStringDOElement(reply, DCM_SeriesInstanceUID, series->seriesInstanceUID, sizeof(series->seriesInstanceUID));
@@ -364,8 +367,8 @@ TI_addImageEntry(TI_SeriesEntry *series, DcmDataset *reply)
     image = (TI_ImageEntry*) malloc(sizeof(TI_ImageEntry));
     if (image == NULL) return OFFalse;
 
-    bzero((char*)image, sizeof(TI_ImageEntry)); /* make sure its clean */
-    bzero((char*)studyID, sizeof(DIC_CS));
+    memset((char*)image, 0, sizeof(TI_ImageEntry)); /* make sure its clean */
+    memset((char*)studyID, 0, sizeof(DIC_CS));
 
     /* extract info from reply */
     ok = DU_getStringDOElement(reply, DCM_SOPInstanceUID, image->sopInstanceUID, sizeof(image->sopInstanceUID));
@@ -442,7 +445,7 @@ TI_addStudyEntry(TI_DBEntry *db, DcmDataset *reply)
     se = (TI_StudyEntry*) malloc(sizeof(TI_StudyEntry));
     if (se == NULL) return OFFalse;
 
-    bzero((char*)se, sizeof(TI_StudyEntry));  /* make sure its clean */
+    memset((char*)se, 0, sizeof(TI_StudyEntry));  /* make sure its clean */
 
     /* extract info from reply */
     ok = DU_getStringDOElement(reply, DCM_StudyInstanceUID, se->studyInstanceUID, sizeof(se->studyInstanceUID));
@@ -486,7 +489,7 @@ DcmQueryRetrieveTelnetInitiator::DcmQueryRetrieveTelnetInitiator(
 , blockMode_(DIMSE_BLOCKING)
 , dimse_timeout_(0)
 {
-  bzero((char*)peerNames, sizeof(peerNames));
+  memset((char*)peerNames, 0, sizeof(peerNames));
 }
 
 OFBool DcmQueryRetrieveTelnetInitiator::TI_detachAssociation(OFBool abortFlag)
@@ -586,14 +589,14 @@ OFCondition DcmQueryRetrieveTelnetInitiator::addPresentationContexts(T_ASC_Param
     /* first add presentation contexts for find and verification */
     for (i=0; i<(int)DIM_OF(abstractSyntaxes) && cond.good(); i++)
     {
-        cond = ASC_addPresentationContext( params, pid, abstractSyntaxes[i], transferSyntaxes, numTransferSyntaxes);
+        cond = ASC_addPresentationContext( params, OFstatic_cast(T_ASC_PresentationContextID, pid), abstractSyntaxes[i], transferSyntaxes, numTransferSyntaxes);
         pid += 2; /* only odd presentation context id's */
     }
 
     /* and then for all storage SOP classes */
     for (i=0; i<numberOfDcmLongSCUStorageSOPClassUIDs && cond.good(); i++)
     {
-      cond = ASC_addPresentationContext( params, pid, dcmLongSCUStorageSOPClassUIDs[i], transferSyntaxes, numTransferSyntaxes);
+      cond = ASC_addPresentationContext( params, OFstatic_cast(T_ASC_PresentationContextID, pid), dcmLongSCUStorageSOPClassUIDs[i], transferSyntaxes, numTransferSyntaxes);
       pid += 2;/* only odd presentation context id's */
     }
 
@@ -811,7 +814,7 @@ OFBool DcmQueryRetrieveTelnetInitiator::TI_storeImage(char *sopClass, char *sopI
         seriesNumber, modality, imageNumber);
     printf("  Image UID: %s\n", sopInstance);
     fflush(stdout);
-    bzero((char*)&req, sizeof(req));
+    memset((char*)&req, 0, sizeof(req));
     req.MessageID = msgId;
     OFStandard::strlcpy(req.AffectedSOPClassUID, sopClass, sizeof(req.AffectedSOPClassUID));
     OFStandard::strlcpy(req.AffectedSOPInstanceUID, sopInstance, sizeof(req.AffectedSOPInstanceUID));
@@ -958,7 +961,7 @@ OFBool DcmQueryRetrieveTelnetInitiator::TI_title(int arg, const char * /*cmdbuf*
         printf("TI_title: arg=%d\n", arg);
     }
 
-    bzero(peerTitle, sizeof(peerTitle));
+    memset(peerTitle, 0, sizeof(peerTitle));
     if (assoc) {
         ASC_getAPTitles(assoc->params, NULL, 0, peerTitle, sizeof(peerTitle), NULL, 0);
     }
@@ -1112,7 +1115,6 @@ OFBool DcmQueryRetrieveTelnetInitiator::TI_quit(int arg, const char * /*cmdbuf*/
     TI_detachAssociation(OFFalse);
     printf("Good Bye, Auf Wiedersehen, Au Revoir\n");
     exit(0);
-    return OFTrue;
 }
 
 OFBool DcmQueryRetrieveTelnetInitiator::TI_actualizeStudies()
@@ -1662,7 +1664,7 @@ OFBool DcmQueryRetrieveTelnetInitiator::TI_send(int /*arg*/, const char *cmdbuf)
         return OFTrue;
     }
 
-    bzero(cmdarg, sizeof(cmdarg));
+    memset(cmdarg, 0, sizeof(cmdarg));
 
     narg = sscanf(cmdbuf, "send %s %d", cmdarg, &iarg);
     if (narg == 1)
@@ -2117,7 +2119,7 @@ void DcmQueryRetrieveTelnetInitiator::createConfigEntries(
     else
     {
       dbEntry = (TI_DBEntry*) malloc( sizeof(TI_DBEntry) );
-      bzero( (char*)dbEntry, sizeof(*dbEntry) );
+      memset( (char*)dbEntry, 0, sizeof(*dbEntry) );
       dbEntry->title = ctnTitles[i];
 
       for( j=0 ; j<peerNamesCount ; j++ )
@@ -2151,7 +2153,7 @@ void DcmQueryRetrieveTelnetInitiator::createConfigEntries(
     {
       // add DB
       dbEntry = (TI_DBEntry*) malloc( sizeof( TI_DBEntry ) );
-      bzero( (char*)dbEntry, sizeof(*dbEntry) );
+      memset( (char*)dbEntry, 0, sizeof(*dbEntry) );
       dbEntry->title = remoteDBTitles[i];
       dbEntry->isRemoteDB = OFTrue;
 

@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1996-2018, OFFIS e.V.
+ *  Copyright (C) 1996-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -28,10 +28,6 @@
 #include "dcmtk/ofstd/ofcast.h"
 
 #include "dcmtk/dcmimgle/diutils.h"
-
-#define INCLUDE_CSTDDEF
-#include "dcmtk/ofstd/ofstdinc.h"
-
 
 /*------------------------*
  *  forward declarations  *
@@ -317,6 +313,16 @@ class DCMTK_DCMIMGLE_EXPORT DiOverlayPlane
         return Mode;
     }
 
+    /** check whether overlay plane is a multi-frame overlay.
+     *  (see DICOM PS3.3 for definition of "Multi-frame Overlay")
+     *
+     ** @return true if plane is a multi-frame overlay, false otherwise
+     */
+    inline int isMultiframe() const
+    {
+        return MultiframeOverlay;
+    }
+
     /** check whether overlay plane is embedded in the pixel data
      *
      ** @return true if plane is embedded, false otherwise
@@ -487,7 +493,9 @@ class DCMTK_DCMIMGLE_EXPORT DiOverlayPlane
     /// y-coordinate of first pixel in surrounding memory buffer
     unsigned int StartTop;
 
-    /// true, if overlay data in embedded in pixel data
+    /// true if overlay plane is a multi-frame overlay
+    int MultiframeOverlay;
+    /// true if overlay data is embedded in pixel data
     int EmbeddedData;
 
     /// pointer to current element of 'Data'
@@ -512,8 +520,12 @@ inline int DiOverlayPlane::reset(const unsigned long frame)
     int result = 0;
     if (Valid && (Data != NULL))
     {
-        const Uint32 frameNumber = OFstatic_cast(Uint32, FirstFrame + frame);
+        /* check for multi-frame overlay */
+        const Uint32 frameNumber = (MultiframeOverlay) ? OFstatic_cast(Uint32, FirstFrame + frame) : 0;
         DCMIMGLE_TRACE("reset overlay plane in group 0x" << STD_NAMESPACE hex << GroupNumber << " to start position");
+        /* special case: single frame overlay for multi-frame image */
+        if (!MultiframeOverlay && (frame > 0))
+            DCMIMGLE_TRACE("  using single frame overlay for multi-frame image (see CP-1974)");
         DCMIMGLE_TRACE("  frameNumber: " << frameNumber << " (" << FirstFrame << "+" << frame
             << "), ImageFrameOrigin: " << ImageFrameOrigin << ", NumberOfFrames: " << NumberOfFrames);
         if ((frameNumber >= ImageFrameOrigin) && (frameNumber < ImageFrameOrigin + NumberOfFrames))
@@ -540,13 +552,13 @@ inline int DiOverlayPlane::reset(const unsigned long frame)
 inline int DiOverlayPlane::getNextBit()
 {
     int result;
-    if (BitsAllocated == 16)                                        // optimization
-        result = OFstatic_cast(int, *(Ptr++) & (1 << BitPosition));
+    if (BitsAllocated == 16)                     // optimization
+        result = *(Ptr++) & (1 << BitPosition);
     else
     {
-        Ptr = StartPtr + (BitPos >> 4);                             // div 16
-        result = OFstatic_cast(int, *Ptr & (1 << (BitPos & 0xf)));  // mod 16
-        BitPos += BitsAllocated;                                    // next bit
+        Ptr = StartPtr + (BitPos >> 4);          // div 16
+        result = *Ptr & (1 << (BitPos & 0xf));   // mod 16
+        BitPos += BitsAllocated;                 // next bit
     }
     return result;
 }

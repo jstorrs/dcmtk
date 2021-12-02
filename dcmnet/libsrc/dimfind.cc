@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2020, OFFIS e.V.
+ *  Copyright (C) 1994-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -81,12 +81,6 @@
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CSTDARG
-#include "dcmtk/ofstd/ofstdinc.h"
-
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -150,8 +144,8 @@ DIMSE_findUser(
     if (requestIdentifiers == NULL) return DIMSE_NULLKEY;
 
     /* initialize the variables which represent DIMSE C-FIND-RQ and DIMSE C-FIND-RSP messages */
-    bzero((char*)&req, sizeof(req));
-    bzero((char*)&rsp, sizeof(rsp));
+    memset((char*)&req, 0, sizeof(req));
+    memset((char*)&rsp, 0, sizeof(rsp));
 
     /* set corresponding values in the request message variable */
     req.CommandField = DIMSE_C_FIND_RQ;
@@ -172,7 +166,7 @@ DIMSE_findUser(
     while (cond == EC_Normal && DICOM_PENDING_STATUS(status))
     {
 	/* initialize the response to collect */
-        bzero((char*)&rsp, sizeof(rsp));
+        memset((char*)&rsp, 0, sizeof(rsp));
         if (rspIds != NULL) {
             delete rspIds;
             rspIds = NULL;
@@ -297,7 +291,7 @@ DIMSE_sendFindResponse(T_ASC_Association * assoc,
     T_DIMSE_Message rsp;
 
     /* create response message */
-    bzero((char*)&rsp, sizeof(rsp));
+    memset((char*)&rsp, 0, sizeof(rsp));
     rsp.CommandField = DIMSE_C_FIND_RSP;
     rsp.msg.CFindRSP = *response;
     rsp.msg.CFindRSP.MessageIDBeingRespondedTo = request->MessageID;
@@ -375,7 +369,7 @@ DIMSE_findProvider(
         {
             /* if the IDs are the same go ahead */
             /* initialize the C-FIND-RSP message variable */
-            bzero((char*)&rsp, sizeof(rsp));
+            memset((char*)&rsp, 0, sizeof(rsp));
             rsp.DimseStatus = STATUS_FIND_Pending_MatchesAreContinuing;
 
             /* as long as no error occurred and the status of the C-FIND-RSP message which will */

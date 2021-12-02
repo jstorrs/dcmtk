@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1996-2020, OFFIS e.V.
+ *  Copyright (C) 1996-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -27,6 +27,7 @@
 
 #include "dcmtk/ofstd/ofcast.h"
 #include "dcmtk/ofstd/ofbmanip.h"
+#include "dcmtk/ofstd/ofdiag.h"      /* for DCMTK_DIAGNOSTIC macros */
 
 #include "dcmtk/dcmimgle/dimoopx.h"
 #include "dcmtk/dcmimgle/dimopx.h"
@@ -40,8 +41,7 @@
 #include "dimcopxt.h"
 #endif
 
-#define INCLUDE_CMATH
-#include "dcmtk/ofstd/ofstdinc.h"
+#include <cmath>
 
 
 /*---------------------*
@@ -287,6 +287,9 @@ class DiMonoOutputPixelTemplate
         }
     }
 
+#include DCMTK_DIAGNOSTIC_PUSH
+#include DCMTK_DIAGNOSTIC_IGNORE_CONST_EXPRESSION_WARNING
+
     /** initialize an optimization LUT if the optimization criteria is fulfilled
      *
      ** @param  lut   reference to storage area where the optimization LUT should be stored
@@ -309,6 +312,8 @@ class DiMonoOutputPixelTemplate
         }
         return result;
     }
+
+#include DCMTK_DIAGNOSTIC_POP
 
 #ifdef PASTEL_COLOR_OUTPUT
     void color(void *buffer,                               // create true color pastel image

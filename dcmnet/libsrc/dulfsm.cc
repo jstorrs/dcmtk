@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2018, OFFIS e.V.
+ *  Copyright (C) 1994-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -71,15 +71,6 @@
 #include <ws2tcpip.h>
 #endif
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CERRNO
-#define INCLUDE_CSIGNAL
-#define INCLUDE_CTIME
-#define INCLUDE_UNISTD
-#include "dcmtk/ofstd/ofstdinc.h"
-
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -109,11 +100,12 @@ END_EXTERN_C
 #endif
 
 #include "dcmtk/ofstd/ofstream.h"
+#include "dcmtk/ofstd/ofstdinc.h"
 #include "dcmtk/dcmnet/dicom.h"
 #include "dcmtk/dcmnet/lst.h"
 #include "dcmtk/dcmnet/cond.h"
 #include "dcmtk/dcmnet/dul.h"
-#include "dulstruc.h"
+#include "dcmtk/dcmnet/dulstruc.h"
 #include "dulpriv.h"
 #include "dulfsm.h"
 #include "dcmtk/ofstd/ofbmanip.h"
@@ -122,7 +114,10 @@ END_EXTERN_C
 #include "dcmtk/dcmnet/dcmtrans.h"
 #include "dcmtk/dcmnet/dcmlayer.h"
 #include "dcmtk/dcmnet/diutil.h"
+#include "dcmtk/dcmnet/helpers.h"
 #include "dcmtk/ofstd/ofsockad.h" /* for class OFSockAddr */
+#include <ctime>
+
 
 /* At least Solaris doesn't define this */
 #ifndef INADDR_NONE
@@ -309,9 +304,6 @@ findPresentationCtx(LST_HEAD ** lst, DUL_PRESENTATIONCONTEXTID contextID);
 
 PRV_SCUSCPROLE *
 findSCUSCPRole(LST_HEAD ** lst, char *abstractSyntax);
-
-void destroyPresentationContextList(LST_HEAD ** l);
-void destroyUserInformationLists(DUL_USERINFO * userInfo);
 
 static volatile FSM_Event_Description Event_Table[] = {
     {A_ASSOCIATE_REQ_LOCAL_USER, "A-ASSOCIATE request (local user)"},
@@ -1021,7 +1013,7 @@ AE_3_AssociateConfirmationAccept(PRIVATE_NETWORKKEY ** /*network*/,
 
         }
 
-        destroyPresentationContextList(&assoc.presentationContextList);
+        destroyAssociatePDUPresentationContextList(&assoc.presentationContextList);
         destroyUserInformationLists(&assoc.userInfo);
         service->peerMaxPDU = assoc.userInfo.maxLength.maxLength;
         (*association)->maxPDV = assoc.userInfo.maxLength.maxLength;
@@ -1238,7 +1230,7 @@ AE_6_ExamineAssociateRequest(PRIVATE_NETWORKKEY ** /*network*/,
                assoc.userInfo.implementationVersionName.data, 16 + 1);
         (*association)->associationState = DUL_ASSOC_ESTABLISHED;
 
-        destroyPresentationContextList(&assoc.presentationContextList);
+        destroyAssociatePDUPresentationContextList(&assoc.presentationContextList);
         destroyUserInformationLists(&assoc.userInfo);
 
         /* If this PDU is ok with us */
@@ -2266,7 +2258,7 @@ requestAssociationTCP(PRIVATE_NETWORKKEY ** network,
           return makeDcmnetCondition(DULC_UNKNOWNHOST, OF_error, buf2);
         }
     }
-    server.setPort(OFstatic_cast(unsigned short, htons(port)));
+    server.setPort(OFstatic_cast(unsigned short, htons(OFstatic_cast(unsigned short, port))));
 
     // get global connection timeout
     Sint32 connectTimeout = dcmConnectionTimeout.get();
@@ -2486,7 +2478,11 @@ requestAssociationTCP(PRIVATE_NETWORKKEY ** network,
          */
 
 #ifdef DONT_DISABLE_NAGLE_ALGORITHM
+#ifdef _MSC_VER
+#pragma message("The macro DONT_DISABLE_NAGLE_ALGORITHM is not supported anymore. See 'macros.txt' for details.")
+#else
 #warning The macro DONT_DISABLE_NAGLE_ALGORITHM is not supported anymore. See "macros.txt" for details.
+#endif
 #endif
 
 #ifdef DISABLE_NAGLE_ALGORITHM
@@ -2522,15 +2518,7 @@ requestAssociationTCP(PRIVATE_NETWORKKEY ** network,
 #endif
         }
 
-       DcmTransportLayerStatus tcsStatus;
-       if (TCS_ok != (tcsStatus = (*association)->connection->clientSideHandshake()))
-       {
-         DCMNET_ERROR("TLS client handshake failed");
-         OFString msg = "DUL secure transport layer: ";
-         msg += (*association)->connection->errorString(tcsStatus);
-         return makeDcmnetCondition(DULC_TLSERROR, OF_error, msg.c_str());
-       }
-       return EC_Normal;
+        return (*association)->connection->clientSideHandshake();
     }
 }
 
@@ -2599,7 +2587,7 @@ sendAssociationRQTCP(PRIVATE_NETWORKKEY ** /*network*/,
       }
     }
 
-    destroyPresentationContextList(&associateRequest.presentationContextList);
+    destroyAssociatePDUPresentationContextList(&associateRequest.presentationContextList);
     destroyUserInformationLists(&associateRequest.userInfo);
     if (cond.bad())
         return cond;
@@ -2682,7 +2670,7 @@ sendAssociationACTCP(PRIVATE_NETWORKKEY ** /*network*/,
       }
     }
 
-    destroyPresentationContextList(&associateReply.presentationContextList);
+    destroyAssociatePDUPresentationContextList(&associateReply.presentationContextList);
     destroyUserInformationLists(&associateReply.userInfo);
 
     if (cond.bad()) return cond;
@@ -3987,49 +3975,4 @@ findSCUSCPRole(LST_HEAD ** lst, char *abstractSyntax)
         role = (PRV_SCUSCPROLE*)LST_Next(lst);
     }
     return NULL;
-}
-
-void
-destroyPresentationContextList(LST_HEAD ** l)
-{
-    PRV_PRESENTATIONCONTEXTITEM
-    * prvCtx;
-    DUL_SUBITEM
-        * subItem;
-
-    if (*l == NULL)
-        return;
-
-    prvCtx = (PRV_PRESENTATIONCONTEXTITEM*)LST_Dequeue(l);
-    while (prvCtx != NULL) {
-        subItem = (DUL_SUBITEM*)LST_Dequeue(&prvCtx->transferSyntaxList);
-        while (subItem != NULL) {
-            free(subItem);
-            subItem = (DUL_SUBITEM*)LST_Dequeue(&prvCtx->transferSyntaxList);
-        }
-        LST_Destroy(&prvCtx->transferSyntaxList);
-        free(prvCtx);
-        prvCtx = (PRV_PRESENTATIONCONTEXTITEM*)LST_Dequeue(l);
-    }
-    LST_Destroy(l);
-}
-
-void
-destroyUserInformationLists(DUL_USERINFO * userInfo)
-{
-    PRV_SCUSCPROLE
-    * role;
-
-    role = (PRV_SCUSCPROLE*)LST_Dequeue(&userInfo->SCUSCPRoleList);
-    while (role != NULL) {
-        free(role);
-        role = (PRV_SCUSCPROLE*)LST_Dequeue(&userInfo->SCUSCPRoleList);
-    }
-    LST_Destroy(&userInfo->SCUSCPRoleList);
-
-    /* extended negotiation */
-    delete userInfo->extNegList; userInfo->extNegList = NULL;
-
-    /* user identity negotiation */
-    delete userInfo->usrIdent; userInfo->usrIdent = NULL;
 }

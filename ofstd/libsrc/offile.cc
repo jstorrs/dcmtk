@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2011-2020, OFFIS e.V.
+ *  Copyright (C) 2011-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -26,6 +26,15 @@
 #include "dcmtk/ofstd/offile.h"
 #include "dcmtk/ofstd/offilsys.h"
 #include "dcmtk/ofstd/ofutil.h"
+#include <cerrno>
+
+#ifdef __SUNPRO_CC
+BEGIN_EXTERN_C
+#include <stdio.h>
+END_EXTERN_C
+#else
+#include <cstdio>
+#endif
 
 #ifdef HAVE_WINDOWS_H
 #include "dcmtk/ofstd/ofchrenc.h"   /* for class OFCharacterEncoding */
@@ -222,4 +231,42 @@ STD_NAMESPACE ostream &operator<<(STD_NAMESPACE ostream &stream,
     /* always output the 8-bit representation */
     stream << OFSTRING_GUARD(filename.getCharPointer());
     return stream;
+}
+
+OFBool OFFile::popen(const char *command, const char *modes)
+{
+  if (file_) fclose();
+#if defined(HAVE_POPEN) || defined(__SUNPRO_CC)
+  // SunPro defines popen() in a header file where CMake cannot find it, but it is there.
+  file_ = :: popen(command, modes);
+#else
+  file_ = _popen(command, modes);
+#endif
+  if (file_) popened_ = OFTrue; else storeLastError();
+  return (file_ != NULL);
+}
+
+int OFFile::fclose()
+{
+  int result = 0;
+  if (file_)
+  {
+    if (popened_)
+    {
+#if defined(HAVE_PCLOSE) || defined(__SUNPRO_CC)
+      // SunPro defines pclose() in a header file where CMake cannot find it, but it is there.
+      result = :: pclose(file_);
+#else
+      result = _pclose(file_);
+#endif
+    }
+    else
+    {
+      result = STDIO_NAMESPACE fclose(file_);
+    }
+    // After calling fclose() once, the FILE* is gone even if fclose() failed.
+    file_ = NULL;
+  }
+  if (result) storeLastError();
+  return result;
 }

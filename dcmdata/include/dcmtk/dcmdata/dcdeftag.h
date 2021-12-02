@@ -4,7 +4,7 @@
 **
 **   User: joergr
 **   Host: thinkpad2
-**   Date: 2021-02-01 15:02:16
+**   Date: 2021-11-25 18:21:56
 **   Prog: /home/joergr/Source/dcmtk-full/public/dcmdata/libsrc/mkdeftag
 **
 **   From: ../data/dicom.dic
@@ -17,12 +17,12 @@
 
 #include "dcmtk/dcmdata/dctagkey.h"
 
-#define DCM_DICT_DEFTAG_BUILD_DATE "2021-02-01 15:02:16"
+#define DCM_DICT_DEFTAG_BUILD_DATE "2021-11-25 18:21:56"
 
 
 /*
 ** Fixed Tags in ascending (gggg,eeee) order.
-** Number of entries: 4850
+** Number of entries: 4897
 ** Tags with a repeating component (repeating tags) are listed later.
 */
 #define DCM_CommandGroupLength                   DcmTagKey(0x0000, 0x0000)
@@ -504,6 +504,8 @@
 #define DCM_TimeOfGainCalibration                DcmTagKey(0x0014, 0x3077)
 #define DCM_BadPixelImage                        DcmTagKey(0x0014, 0x3080)
 #define DCM_CalibrationNotes                     DcmTagKey(0x0014, 0x3099)
+#define DCM_LinearityCorrectionTechnique         DcmTagKey(0x0014, 0x3100)
+#define DCM_BeamHardeningCorrectionTechnique     DcmTagKey(0x0014, 0x3101)
 #define DCM_PulserEquipmentSequence              DcmTagKey(0x0014, 0x4002)
 #define DCM_PulserType                           DcmTagKey(0x0014, 0x4004)
 #define DCM_PulserNotes                          DcmTagKey(0x0014, 0x4006)
@@ -1319,7 +1321,7 @@
 #define DCM_CTExposureSequence                   DcmTagKey(0x0018, 0x9321)
 #define DCM_ReconstructionPixelSpacing           DcmTagKey(0x0018, 0x9322)
 #define DCM_ExposureModulationType               DcmTagKey(0x0018, 0x9323)
-#define DCM_EstimatedDoseSaving                  DcmTagKey(0x0018, 0x9324)
+#define DCM_RETIRED_EstimatedDoseSaving          DcmTagKey(0x0018, 0x9324)
 #define DCM_CTXRayDetailsSequence                DcmTagKey(0x0018, 0x9325)
 #define DCM_CTPositionSequence                   DcmTagKey(0x0018, 0x9326)
 #define DCM_TablePosition                        DcmTagKey(0x0018, 0x9327)
@@ -1889,7 +1891,7 @@
 #define DCM_OphthalmicEnFaceImageQualityRatingSequence DcmTagKey(0x0022, 0x1628)
 #define DCM_QualityThreshold                     DcmTagKey(0x0022, 0x1630)
 #define DCM_OCTBscanAnalysisAcquisitionParametersSequence DcmTagKey(0x0022, 0x1640)
-#define DCM_NumberofBscansPerFrame               DcmTagKey(0x0022, 0x1642)
+#define DCM_NumberOfBscansPerFrame               DcmTagKey(0x0022, 0x1642)
 #define DCM_BscanSlabThickness                   DcmTagKey(0x0022, 0x1643)
 #define DCM_DistanceBetweenBscanSlabs            DcmTagKey(0x0022, 0x1644)
 #define DCM_BscanCycleTime                       DcmTagKey(0x0022, 0x1645)
@@ -2659,7 +2661,7 @@
 #define DCM_RETIRED_LanguageCodeSequenceTrial    DcmTagKey(0x0040, 0xa744)
 #define DCM_TabulatedValuesSequence              DcmTagKey(0x0040, 0xa801)
 #define DCM_NumberOfTableRows                    DcmTagKey(0x0040, 0xa802)
-#define DCM_NumbeOfTableColumns                  DcmTagKey(0x0040, 0xa803)
+#define DCM_NumberOfTableColumns                 DcmTagKey(0x0040, 0xa803)
 #define DCM_TableRowNumber                       DcmTagKey(0x0040, 0xa804)
 #define DCM_TableColumnNumber                    DcmTagKey(0x0040, 0xa805)
 #define DCM_TableRowDefinitionSequence           DcmTagKey(0x0040, 0xa806)
@@ -2831,9 +2833,9 @@
 #define DCM_ObjectiveLensPower                   DcmTagKey(0x0048, 0x0112)
 #define DCM_ObjectiveLensNumericalAperture       DcmTagKey(0x0048, 0x0113)
 #define DCM_PaletteColorLookupTableSequence      DcmTagKey(0x0048, 0x0120)
-#define DCM_ReferencedImageNavigationSequence    DcmTagKey(0x0048, 0x0200)
-#define DCM_TopLeftHandCornerOfLocalizerArea     DcmTagKey(0x0048, 0x0201)
-#define DCM_BottomRightHandCornerOfLocalizerArea DcmTagKey(0x0048, 0x0202)
+#define DCM_RETIRED_ReferencedImageNavigationSequence DcmTagKey(0x0048, 0x0200)
+#define DCM_RETIRED_TopLeftHandCornerOfLocalizerArea DcmTagKey(0x0048, 0x0201)
+#define DCM_RETIRED_BottomRightHandCornerOfLocalizerArea DcmTagKey(0x0048, 0x0202)
 #define DCM_OpticalPathIdentificationSequence    DcmTagKey(0x0048, 0x0207)
 #define DCM_PlanePositionSlideSequence           DcmTagKey(0x0048, 0x021a)
 #define DCM_ColumnPositionInTotalImagePixelMatrix DcmTagKey(0x0048, 0x021e)
@@ -3027,6 +3029,7 @@
 #define DCM_VectorDimensionality                 DcmTagKey(0x0066, 0x001f)
 #define DCM_VectorAccuracy                       DcmTagKey(0x0066, 0x0020)
 #define DCM_VectorCoordinateData                 DcmTagKey(0x0066, 0x0021)
+#define DCM_DoublePointCoordinatesData           DcmTagKey(0x0066, 0x0022)
 #define DCM_RETIRED_TrianglePointIndexList       DcmTagKey(0x0066, 0x0023)
 #define DCM_RETIRED_EdgePointIndexList           DcmTagKey(0x0066, 0x0024)
 #define DCM_RETIRED_VertexPointIndexList         DcmTagKey(0x0066, 0x0025)
@@ -3143,6 +3146,22 @@
 #define DCM_ModelUsageCodeSequence               DcmTagKey(0x0068, 0x7003)
 #define DCM_ModelGroupUID                        DcmTagKey(0x0068, 0x7004)
 #define DCM_RelativeURIReferenceWithinEncapsulatedDocument DcmTagKey(0x0068, 0x7005)
+#define DCM_AnnotationCoordinateType             DcmTagKey(0x006a, 0x0001)
+#define DCM_AnnotationGroupSequence              DcmTagKey(0x006a, 0x0002)
+#define DCM_AnnotationGroupUID                   DcmTagKey(0x006a, 0x0003)
+#define DCM_AnnotationGroupLabel                 DcmTagKey(0x006a, 0x0005)
+#define DCM_AnnotationGroupDescription           DcmTagKey(0x006a, 0x0006)
+#define DCM_AnnotationGroupGenerationType        DcmTagKey(0x006a, 0x0007)
+#define DCM_AnnotationGroupAlgorithmIdentificationSequence DcmTagKey(0x006a, 0x0008)
+#define DCM_AnnotationPropertyCategoryCodeSequence DcmTagKey(0x006a, 0x0009)
+#define DCM_AnnotationPropertyTypeCodeSequence   DcmTagKey(0x006a, 0x000a)
+#define DCM_AnnotationPropertyTypeModifierCodeSequence DcmTagKey(0x006a, 0x000b)
+#define DCM_NumberOfAnnotations                  DcmTagKey(0x006a, 0x000c)
+#define DCM_AnnotationAppliesToAllOpticalPaths   DcmTagKey(0x006a, 0x000d)
+#define DCM_ReferencedOpticalPathIdentifier      DcmTagKey(0x006a, 0x000e)
+#define DCM_AnnotationAppliesToAllZPlanes        DcmTagKey(0x006a, 0x000f)
+#define DCM_CommonZCoordinateValue               DcmTagKey(0x006a, 0x0010)
+#define DCM_AnnotationIndexList                  DcmTagKey(0x006a, 0x0011)
 #define DCM_GraphicAnnotationSequence            DcmTagKey(0x0070, 0x0001)
 #define DCM_GraphicLayer                         DcmTagKey(0x0070, 0x0002)
 #define DCM_BoundingBoxAnnotationUnits           DcmTagKey(0x0070, 0x0003)
@@ -4242,6 +4261,7 @@
 #define DCM_SourceApplicatorWallNominalThickness DcmTagKey(0x300a, 0x029c)
 #define DCM_SourceApplicatorWallNominalTransmission DcmTagKey(0x300a, 0x029e)
 #define DCM_SourceApplicatorStepSize             DcmTagKey(0x300a, 0x02a0)
+#define DCM_ApplicatorShapeReferencedROINumber   DcmTagKey(0x300a, 0x02a1)
 #define DCM_TransferTubeNumber                   DcmTagKey(0x300a, 0x02a2)
 #define DCM_TransferTubeLength                   DcmTagKey(0x300a, 0x02a4)
 #define DCM_ChannelShieldSequence                DcmTagKey(0x300a, 0x02b0)
@@ -4420,7 +4440,7 @@
 #define DCM_CArmPhotonElectronControlPointSequence DcmTagKey(0x300a, 0x062f)
 #define DCM_ReferencedRTRadiationSequence        DcmTagKey(0x300a, 0x0630)
 #define DCM_ReferencedRTInstanceSequence         DcmTagKey(0x300a, 0x0631)
-#define DCM_ReferencedRTPatientSetupSequence     DcmTagKey(0x300a, 0x0632)
+#define DCM_RETIRED_ReferencedRTPatientSetupSequence DcmTagKey(0x300a, 0x0632)
 #define DCM_SourceToPatientSurfaceDistance       DcmTagKey(0x300a, 0x0634)
 #define DCM_TreatmentMachineSpecialModeCodeSequence DcmTagKey(0x300a, 0x0635)
 #define DCM_IntendedNumberOfFractions            DcmTagKey(0x300a, 0x0636)
@@ -4449,7 +4469,7 @@
 #define DCM_RTBeamLimitingDeviceDefinitionSequence DcmTagKey(0x300a, 0x064d)
 #define DCM_ParallelRTBeamDelimiterOpeningMode   DcmTagKey(0x300a, 0x064e)
 #define DCM_ParallelRTBeamDelimiterLeafMountingSide DcmTagKey(0x300a, 0x064f)
-#define DCM_PatientSetupUID                      DcmTagKey(0x300a, 0x0650)
+#define DCM_RETIRED_PatientSetupUID              DcmTagKey(0x300a, 0x0650)
 #define DCM_WedgeDefinitionSequence              DcmTagKey(0x300a, 0x0651)
 #define DCM_RadiationBeamWedgeAngle              DcmTagKey(0x300a, 0x0652)
 #define DCM_RadiationBeamWedgeThinEdgeDistance   DcmTagKey(0x300a, 0x0653)
@@ -4549,6 +4569,33 @@
 #define DCM_DoseMeasurementDeviceCodeSequence    DcmTagKey(0x300a, 0x0774)
 #define DCM_AdditionalParameterRecordingInstanceSequence DcmTagKey(0x300a, 0x0780)
 #define DCM_InterlockOriginDescription           DcmTagKey(0x300a, 0x0783)
+#define DCM_RTPatientPositionScopeSequence       DcmTagKey(0x300a, 0x0784)
+#define DCM_ReferencedTreatmentPositionGroupUID  DcmTagKey(0x300a, 0x0785)
+#define DCM_RadiationOrderIndex                  DcmTagKey(0x300a, 0x0786)
+#define DCM_OmittedRadiationSequence             DcmTagKey(0x300a, 0x0787)
+#define DCM_ReasonForOmissionCodeSequence        DcmTagKey(0x300a, 0x0788)
+#define DCM_RTDeliveryStartPatientPositionSequence DcmTagKey(0x300a, 0x0789)
+#define DCM_RTTreatmentPreparationPatientPositionSequence DcmTagKey(0x300a, 0x078a)
+#define DCM_ReferencedRTTreatmentPreparationSequence DcmTagKey(0x300a, 0x078b)
+#define DCM_ReferencedPatientSetupPhotoSequence  DcmTagKey(0x300a, 0x078c)
+#define DCM_PatientTreatmentPreparationMethodCodeSequence DcmTagKey(0x300a, 0x078d)
+#define DCM_PatientTreatmentPreparationProcedureParameterDescription DcmTagKey(0x300a, 0x078e)
+#define DCM_PatientTreatmentPreparationDeviceSequence DcmTagKey(0x300a, 0x078f)
+#define DCM_PatientTreatmentPreparationProcedureSequence DcmTagKey(0x300a, 0x0790)
+#define DCM_PatientTreatmentPreparationProcedureCodeSequence DcmTagKey(0x300a, 0x0791)
+#define DCM_PatientTreatmentPreparationMethodDescription DcmTagKey(0x300a, 0x0792)
+#define DCM_PatientTreatmentPreparationProcedureParameterSequence DcmTagKey(0x300a, 0x0793)
+#define DCM_PatientSetupPhotoDescription         DcmTagKey(0x300a, 0x0794)
+#define DCM_PatientTreatmentPreparationProcedureIndex DcmTagKey(0x300a, 0x0795)
+#define DCM_ReferencedPatientSetupProcedureIndex DcmTagKey(0x300a, 0x0796)
+#define DCM_RTRadiationTaskSequence              DcmTagKey(0x300a, 0x0797)
+#define DCM_RTPatientPositionDisplacementSequence DcmTagKey(0x300a, 0x0798)
+#define DCM_RTPatientPositionSequence            DcmTagKey(0x300a, 0x0799)
+#define DCM_DisplacementReferenceLabel           DcmTagKey(0x300a, 0x079a)
+#define DCM_DisplacementMatrix                   DcmTagKey(0x300a, 0x079b)
+#define DCM_PatientSupportDisplacementSequence   DcmTagKey(0x300a, 0x079c)
+#define DCM_DisplacementReferenceLocationCodeSequence DcmTagKey(0x300a, 0x079d)
+#define DCM_RTRadiationSetDeliveryUsage          DcmTagKey(0x300a, 0x079e)
 #define DCM_ReferencedRTPlanSequence             DcmTagKey(0x300c, 0x0002)
 #define DCM_ReferencedBeamSequence               DcmTagKey(0x300c, 0x0004)
 #define DCM_ReferencedBeamNumber                 DcmTagKey(0x300c, 0x0006)

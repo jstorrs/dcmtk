@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1993-2019, OFFIS e.V.
+ *  Copyright (C) 1993-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -34,20 +34,19 @@ BEGIN_EXTERN_C
 #endif
 END_EXTERN_C
 
-#define INCLUDE_CCTYPE
-#define INCLUDE_CSTDARG
-#include "dcmtk/ofstd/ofstdinc.h"
 #include "dcmtk/ofstd/ofstd.h"
 
 #include "dcmtk/dcmqrdb/dcmqrdbs.h"
 #include "dcmtk/dcmqrdb/dcmqrdbi.h"
 #include "dcmtk/dcmqrdb/dcmqrcnf.h"
 #include "dcmtk/dcmqrdb/dcmqropt.h"
-
+#include "dcmtk/ofstd/ofstdinc.h"
 #include "dcmtk/dcmqrdb/dcmqridx.h"
 #include "dcmtk/dcmnet/diutil.h"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmdata/dcmatch.h"
+#include <ctime>
+
 
 /* ========================= static data ========================= */
 
@@ -723,7 +722,7 @@ static OFCondition DB_GetTagKeyAttr (DcmTagKey tag, DB_KEY_TYPE *keyAttr)
 
 static void DB_DuplicateElement (DB_SmallDcmElmt *src, DB_SmallDcmElmt *dst)
 {
-    bzero( (char*)dst, sizeof (DB_SmallDcmElmt));
+    memset( (char*)dst, 0, sizeof (DB_SmallDcmElmt));
     dst -> XTag = src -> XTag;
     dst -> ValueLength = src -> ValueLength;
 
@@ -731,7 +730,7 @@ static void DB_DuplicateElement (DB_SmallDcmElmt *src, DB_SmallDcmElmt *dst)
         dst -> PValueField = NULL;
     else {
         dst -> PValueField = (char *)malloc ((int) src -> ValueLength+1);
-        bzero(dst->PValueField, (size_t)(src->ValueLength+1));
+        memset(dst->PValueField, 0, (size_t)(src->ValueLength+1));
         if (dst->PValueField != NULL) {
             memcpy (dst -> PValueField,  src -> PValueField,
                 (size_t) src -> ValueLength);
@@ -838,6 +837,7 @@ public:
         if (!query->elem.ValueLength)
             return OFTrue;
 
+        (void)findRequestConverter;
         OFString buffer;
         const char* pQuery = query->elem.PValueField;
         const char* pQueryEnd = pQuery + query->elem.ValueLength;
@@ -1577,7 +1577,11 @@ OFCondition DcmQueryRetrieveIndexDatabaseHandle::startFindRequest(
 OFCondition DcmQueryRetrieveIndexDatabaseHandle::nextFindResponse (
                 DcmDataset      **findResponseIdentifiers,
                 DcmQueryRetrieveDatabaseStatus  *status,
+#ifdef DCMTK_ENABLE_CHARSET_CONVERSION
                 const DcmQueryRetrieveCharacterSetOptions& characterSetOptions)
+#else
+                const DcmQueryRetrieveCharacterSetOptions& /* characterSetOptions */)
+#endif
 {
 
     DB_ElementList      *plist = NULL;
@@ -2285,7 +2289,7 @@ OFCondition DcmQueryRetrieveIndexDatabaseHandle::nextMoveResponse(
     OFStandard::strlcpy(SOPInstanceUID, (char *) idxRec. SOPInstanceUID, SOPInstanceUIDSize) ;
     OFStandard::strlcpy(imageFileName, (char *) idxRec. filename, imageFileNameSize) ;
 
-    *numberOfRemainingSubOperations = --handle_->NumberRemainOperations ;
+    *numberOfRemainingSubOperations = OFstatic_cast(unsigned short, (--handle_->NumberRemainOperations));
 
     nextlist = handle_->moveCounterList->next ;
     free (handle_->moveCounterList) ;
@@ -2670,7 +2674,7 @@ OFCondition DcmQueryRetrieveIndexDatabaseHandle::storeRequest (
     /**** Initialize an IdxRecord
     ***/
 
-    bzero((char*)&idxRec, sizeof(idxRec));
+    memset((char*)&idxRec, 0, sizeof(idxRec));
 
     DB_IdxInitRecord (&idxRec, 0) ;
 
@@ -2716,7 +2720,7 @@ OFCondition DcmQueryRetrieveIndexDatabaseHandle::storeRequest (
     }
 
     /* InstanceStatus */
-    idxRec.hstat = (isNew) ? DVIF_objectIsNew : DVIF_objectIsNotNew;
+    idxRec.hstat = OFstatic_cast(char, ((isNew) ? DVIF_objectIsNew : DVIF_objectIsNotNew));
 
     /* InstanceDescription */
     OFBool useDescrTag = OFTrue;
@@ -2742,6 +2746,7 @@ OFCondition DcmQueryRetrieveIndexDatabaseHandle::storeRequest (
                    (strcmp(SOPClassUID, UID_ChestCADSRStorage) == 0) ||
                    (strcmp(SOPClassUID, UID_ColonCADSRStorage) == 0) ||
                    (strcmp(SOPClassUID, UID_XRayRadiationDoseSRStorage) == 0) ||
+                   (strcmp(SOPClassUID, UID_EnhancedXRayRadiationDoseSRStorage) == 0) ||
                    (strcmp(SOPClassUID, UID_SpectaclePrescriptionReportStorage) == 0) ||
                    (strcmp(SOPClassUID, UID_MacularGridThicknessAndVolumeReportStorage) == 0) ||
                    (strcmp(SOPClassUID, UID_ImplantationPlanSRDocumentStorage) == 0) ||
@@ -2833,7 +2838,7 @@ OFCondition DcmQueryRetrieveIndexDatabaseHandle::storeRequest (
       return (QR_EC_IndexDatabaseError) ;
     }
 
-    bzero((char *)pStudyDesc, SIZEOF_STUDYDESC);
+    memset((char *)pStudyDesc, 0, SIZEOF_STUDYDESC);
     DB_GetStudyDesc(pStudyDesc) ;
 
     stat(imageFileName, &stat_buf) ;

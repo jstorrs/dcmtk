@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2020, J. Riesmeier, Oldenburg, Germany
+ *  Copyright (C) 2020-2021, J. Riesmeier, Oldenburg, Germany
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -24,7 +24,8 @@
 
 #include "dcmtk/ofstd/oftest.h"
 #include "dcmtk/dcmnet/dimse.h"
-
+#include "dcmtk/ofstd/ofdiag.h"
+#include DCMTK_DIAGNOSTIC_IGNORE_CONST_EXPRESSION_WARNING
 
 OFTEST(dcmnet_dimseStatusClass)
 {

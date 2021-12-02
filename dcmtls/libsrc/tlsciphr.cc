@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2018-2019, OFFIS e.V.
+ *  Copyright (C) 2018-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -23,6 +23,7 @@
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 #include "dcmtk/dcmtls/tlsciphr.h"
 #include "dcmtk/dcmtls/tlsdefin.h"
+#include "dcmtk/dcmtls/tlscond.h"
 #include "dcmtk/dcmtls/tlslayer.h"    /* for TLS_ERROR macro */
 
 #ifdef WITH_OPENSSL
@@ -32,7 +33,7 @@ BEGIN_EXTERN_C
 #include <openssl/tls1.h>
 END_EXTERN_C
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+#ifndef HAVE_OPENSSL_PROTOTYPE_SSL_CTX_GET_CIPHERS
 #define SSL_CTX_get_ciphers(ctx) (ctx)->cipher_list
 #endif
 
@@ -125,7 +126,8 @@ static const DcmCipherSuiteList globalCipherSuiteList[] =
     {"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",            TLS1_TXT_ECDHE_RSA_WITH_AES_256_CBC_SHA,         TPV_SSLv3,  TKE_ECDH,       TCA_RSA,    TCE_AES,      TCM_SHA1,   256, 256},
     {"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384",       TLS1_TXT_ECDHE_ECDSA_WITH_AES_256_SHA384,        TPV_TLSv12, TKE_ECDH,       TCA_ECDSA,  TCE_AES,      TCM_SHA384, 256, 256},
     {"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",         TLS1_TXT_ECDHE_RSA_WITH_AES_256_SHA384,          TPV_TLSv12, TKE_ECDH,       TCA_RSA,    TCE_AES,      TCM_SHA384, 256, 256},
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+
+#ifdef HAVE_OPENSSL_PROTOTYPE_TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305
     /* OpenSSL 1.1.0 supports the ChaCha20-Poly1305 ciphersuites defined in RFC 7905 */
     {"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256", TLS1_TXT_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,     TPV_TLSv12, TKE_ECDH,       TCA_ECDSA,  TCE_ChaCha20, TCM_AEAD,   256, 256},
     {"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",   TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305,       TPV_TLSv12, TKE_ECDH,       TCA_RSA,    TCE_ChaCha20, TCM_AEAD,   256, 256},
@@ -140,7 +142,7 @@ static const DcmCipherSuiteList globalCipherSuiteList[] =
     {"TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA",         TLS1_TXT_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA,      TPV_SSLv3,  TKE_DH,         TCA_RSA,    TCE_Camellia, TCM_SHA1,   256, 256},
     {"TLS_DHE_DSS_WITH_AES_256_CBC_SHA256",           TLS1_TXT_DHE_DSS_WITH_AES_256_SHA256,            TPV_TLSv12, TKE_DH,         TCA_DSS,    TCE_AES,      TCM_SHA256, 256, 256},
     {"TLS_DHE_RSA_WITH_AES_256_CBC_SHA256",           TLS1_TXT_DHE_RSA_WITH_AES_256_SHA256,            TPV_TLSv12, TKE_DH,         TCA_RSA,    TCE_AES,      TCM_SHA256, 256, 256},
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#ifdef HAVE_OPENSSL_PROTOTYPE_TLS1_TXT_ECDHE_RSA_WITH_CHACHA20_POLY1305
     /* OpenSSL 1.1.0 supports the ChaCha20-Poly1305 ciphersuites defined in RFC 7905 */
     {"TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256",     TLS1_TXT_DHE_RSA_WITH_CHACHA20_POLY1305,         TPV_TLSv12, TKE_DH,         TCA_RSA,    TCE_ChaCha20, TCM_AEAD,   256, 256},
 #endif
@@ -173,7 +175,7 @@ void DcmTLSCiphersuiteHandler::determineSupportedCiphers()
   size_t numEntries = GLOBAL_NUM_CIPHERSUITES;
   for (size_t i = 0; i < numEntries; i++) ciphersuiteSupported[i] = OFFalse;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#ifndef HAVE_OPENSSL_PROTOTYPE_TLS_METHOD
   SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
 #else
   SSL_CTX *ctx = SSL_CTX_new(TLS_method());
@@ -211,17 +213,17 @@ void DcmTLSCiphersuiteHandler::determineSupportedCiphers()
 }
 
 
-DcmTransportLayerStatus DcmTLSCiphersuiteHandler::addRequiredCipherSuite(const char *name)
+OFCondition DcmTLSCiphersuiteHandler::addRequiredCipherSuite(const char *name)
 {
-  if (NULL == name) return TCS_illegalCall;
+  if (NULL == name) return EC_IllegalCall;
   size_t idx = lookupCiphersuite(name);
   if (idx < GLOBAL_NUM_CIPHERSUITES) ciphersuiteList.push_back(idx);
   else
   {
      DCMTLS_FATAL("Ciphersuite '" << name << "' not supported by the OpenSSL library used to compile this application.");
-     return TCS_tlsError;
+     return DCMTLS_EC_UnknownCiphersuite(name);
   }
-  return TCS_ok;
+  return EC_Normal;
 }
 
 
@@ -238,10 +240,10 @@ void DcmTLSCiphersuiteHandler::addOptional3DESCipherSuite()
 }
 
 
-DcmTransportLayerStatus DcmTLSCiphersuiteHandler::setTLSProfile(DcmTLSSecurityProfile profile)
+OFCondition DcmTLSCiphersuiteHandler::setTLSProfile(DcmTLSSecurityProfile profile)
 {
   currentProfile = profile;
-  DcmTransportLayerStatus result = TCS_ok;
+  OFCondition result = EC_Normal;
 
   switch (profile)
   {
@@ -252,66 +254,66 @@ DcmTransportLayerStatus DcmTLSCiphersuiteHandler::setTLSProfile(DcmTLSSecurityPr
     case TSP_Profile_Basic:
       tls13_enabled = OFFalse;
       result = addRequiredCipherSuite("TLS_RSA_WITH_3DES_EDE_CBC_SHA");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       break;
     case TSP_Profile_AES:
       tls13_enabled = OFFalse;
       result = addRequiredCipherSuite("TLS_RSA_WITH_AES_128_CBC_SHA");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       addOptional3DESCipherSuite();
       break;
     case TSP_Profile_BCP195:
       tls13_enabled = OFTrue;
       // recommended ciphersuites as defined in the DICOM profile, plus backwards compatibility
       result = addRequiredCipherSuite("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_DHE_RSA_WITH_AES_128_GCM_SHA256");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_DHE_RSA_WITH_AES_256_GCM_SHA384");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_RSA_WITH_AES_128_CBC_SHA");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       addOptional3DESCipherSuite();
       break;
     case TSP_Profile_BCP195_ND:
       tls13_enabled = OFTrue;
       // required ciphersuites as defined in the DICOM profile
       result = addRequiredCipherSuite("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_DHE_RSA_WITH_AES_128_GCM_SHA256");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_DHE_RSA_WITH_AES_256_GCM_SHA384");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       break;
     case TSP_Profile_BCP195_Extended:
       tls13_enabled = OFFalse;
       // required ciphersuites as defined in the DICOM profile
       result = addRequiredCipherSuite("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_DHE_RSA_WITH_AES_128_GCM_SHA256");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_DHE_RSA_WITH_AES_256_GCM_SHA384");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       result = addRequiredCipherSuite("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       break;
     case TSP_Profile_IHE_ATNA_Unencrypted:
       tls13_enabled = OFFalse;
       result = addRequiredCipherSuite("TLS_RSA_WITH_NULL_SHA");
-      if (TCS_ok != result) return result;
+      if (result.bad()) return result;
       break;
     // we don't want a default case here
   }
 
-  return TCS_ok;
+  return EC_Normal;
 }
 
 void DcmTLSCiphersuiteHandler::clearTLSProfile()
@@ -321,7 +323,7 @@ void DcmTLSCiphersuiteHandler::clearTLSProfile()
   ciphersuiteList.clear();
 }
 
-DcmTransportLayerStatus DcmTLSCiphersuiteHandler::addCipherSuite(const char *suite)
+OFCondition DcmTLSCiphersuiteHandler::addCipherSuite(const char *suite)
 {
   // first look up the index for the TLS ciphersuite name,
   // then look up the OpenSSL ciphersuite name based on this index.
@@ -332,7 +334,7 @@ DcmTransportLayerStatus DcmTLSCiphersuiteHandler::addCipherSuite(const char *sui
 	{
       // user has selected a ciphersuite not supported by the OpenSSL version we are using
       DCMTLS_FATAL("Ciphersuite '" << suite << "' not supported by the OpenSSL library used to compile this application.");
-      return TCS_tlsError;
+      return DCMTLS_EC_UnknownCiphersuite(suite);
     }
 
     size_t keySize = 0;
@@ -350,7 +352,7 @@ DcmTransportLayerStatus DcmTLSCiphersuiteHandler::addCipherSuite(const char *sui
         if (keySize == 0)
         {
           DCMTLS_FATAL("Unencrypted ciphersuite '" << suite << "' not permitted with security profile '" << lookupProfileName(currentProfile) << "'");
-          return TCS_tlsError;
+          return DCMTLS_EC_CiphersuiteNotAllowed;
         }
         if (TKE_RSA == getCipherSuiteKeyExchange(idx))
         {
@@ -364,7 +366,7 @@ DcmTransportLayerStatus DcmTLSCiphersuiteHandler::addCipherSuite(const char *sui
 
       case TSP_Profile_BCP195_Extended:
         DCMTLS_FATAL("Additional ciphersuites not permitted with security profile '" << lookupProfileName(currentProfile) << "'");
-        return TCS_tlsError;
+        return DCMTLS_EC_CiphersuiteNotAllowed;
         break;
 
       case TSP_Profile_None:
@@ -374,10 +376,10 @@ DcmTransportLayerStatus DcmTLSCiphersuiteHandler::addCipherSuite(const char *sui
     }
 
     ciphersuiteList.push_back(idx);
-    return TCS_ok;
+    return EC_Normal;
   }
   // invalid/unknown cipher suite name
-  return TCS_illegalCall;
+  return EC_IllegalCall;
 }
 
 // Static helper function for the qsort() call in
@@ -575,7 +577,7 @@ OFBool DcmTLSCiphersuiteHandler::isTLS13Enabled() const
 long DcmTLSCiphersuiteHandler::getTLSOptions() const
 {
   long result = 0;
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#ifndef HAVE_OPENSSL_PROTOTYPE_TLS_METHOD
   // When compiling with OpenSSL 1.1.0, SSL support is disabled in DcmTLSTransportLayer anyway.
   // For older OpenSSL versions we explicitly disable them here.
   result |= SSL_OP_NO_SSLv2;

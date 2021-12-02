@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1996-2019, OFFIS e.V.
+ *  Copyright (C) 1996-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -20,12 +20,6 @@
  */
 
 #include "dcmtk/config/osconfig.h" /* make sure OS specific configuration is included first */
-
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CCTYPE
-#include "dcmtk/ofstd/ofstdinc.h"
 
 BEGIN_EXTERN_C
 #ifdef HAVE_SYS_FILE_H
@@ -53,6 +47,9 @@ END_EXTERN_C
 #include "dcmtk/dcmdata/dcuid.h"     /* for dcmtk version name */
 #include "dcmtk/dcmdata/dcostrmz.h"  /* for dcmZlibCompressionLevel */
 #include "dcmtk/dcmtls/tlsopt.h"     /* for DcmTLSOptions */
+#include "dcmtk/ofstd/ofstdinc.h"
+#include <ctime>
+
 
 #ifdef ON_THE_FLY_COMPRESSION
 #include "dcmtk/dcmjpeg/djdecode.h"  /* for JPEG decoders */
@@ -863,8 +860,8 @@ int main(int argc, char *argv[])
       cond = ASC_abortAssociation(assoc);
       if (cond.bad()) {
         OFLOG_ERROR(storescuLogger, "Association Abort Failed: " << DimseCondition::dump(temp_str, cond));
-        return 1;
       }
+      return 1;
     }
 
     /* destroy the association, i.e. free memory of T_ASC_Association* structure. This */
@@ -894,7 +891,7 @@ int main(int argc, char *argv[])
     if (opt_haltOnUnsuccessfulStore && unsuccessfulStoreEncountered) {
       if (lastStatusCode == STATUS_Success) {
         // there must have been some kind of general network error
-        exitCode = 0xff;
+        exitCode = 10;
       } else {
         exitCode = (lastStatusCode >> 8); // only the least significant byte is relevant as exit code
       }
@@ -944,7 +941,7 @@ addPresentationContext(T_ASC_Parameters *params,
   T_ASC_SC_ROLE proposedRole = ASC_SC_ROLE_DEFAULT)
 {
   const char *c_p = transferSyntax.c_str();
-  OFCondition cond = ASC_addPresentationContext(params, presentationContextId,
+  OFCondition cond = ASC_addPresentationContext(params, OFstatic_cast(T_ASC_PresentationContextID, presentationContextId),
     abstractSyntax.c_str(), &c_p, 1, proposedRole);
   return cond;
 }
@@ -966,7 +963,7 @@ addPresentationContext(T_ASC_Parameters *params,
     ++s_cur;
   }
 
-  OFCondition cond = ASC_addPresentationContext(params, presentationContextId,
+  OFCondition cond = ASC_addPresentationContext(params, OFstatic_cast(T_ASC_PresentationContextID, presentationContextId),
     abstractSyntax.c_str(), transferSyntaxes, transferSyntaxCount, proposedRole);
 
   delete[] transferSyntaxes;
@@ -1377,7 +1374,7 @@ storeSCU(T_ASC_Association *assoc, const char *fname)
 #endif
 
   /* prepare the transmission of data */
-  bzero(OFreinterpret_cast(char *, &req), sizeof(req));
+  memset(OFreinterpret_cast(char *, &req), 0, sizeof(req));
   req.MessageID = msgId;
   OFStandard::strlcpy(req.AffectedSOPClassUID, sopClass, sizeof(req.AffectedSOPClassUID));
   OFStandard::strlcpy(req.AffectedSOPInstanceUID, sopInstance, sizeof(req.AffectedSOPInstanceUID));

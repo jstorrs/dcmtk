@@ -29,13 +29,9 @@
 #include "dcmtk/ofstd/ofstring.h"   /* for class OFString */
 #include "dcmtk/ofstd/ofstd.h"      /* for class OFStandard */
 
-#define INCLUDE_UNISTD
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CSTDARG
-#define INCLUDE_CERRNO
-//#define INCLUDE_CWCHAR    /* not yet implemented in "ofstdinc.h" */
-#include "dcmtk/ofstd/ofstdinc.h"
+#include <cstdio>
+#include <cstdlib>
+#include <cerrno>
 
 BEGIN_EXTERN_C
 #ifdef HAVE_SYS_STAT_H
@@ -332,7 +328,7 @@ DCMTK_OFSTD_EXPORT STD_NAMESPACE ostream &operator<<(STD_NAMESPACE ostream &stre
  *  on Unix platforms are based on errno and strerror/strerror_r, but may be based
  *  on other mechanisms on platforms where errno does not exist.
  */
-class OFFile
+class DCMTK_OFSTD_EXPORT OFFile
 {
 public:
   /// default constructor, creates an object that is not associated with any file.
@@ -451,17 +447,7 @@ public:
    *  @param modes "r" or "w"
    *  @return true if pipe was successfully created, false otherwise
    */
-  OFBool popen(const char *command, const char *modes)
-  {
-    if (file_) fclose();
-#ifdef HAVE_POPEN
-    file_ = :: popen(command, modes);
-#else
-    file_ = _popen(command, modes);
-#endif
-    if (file_) popened_ = OFTrue; else storeLastError();
-    return (file_ != NULL);
-  }
+  OFBool popen(const char *command, const char *modes);
 
   /** opens the file whose name is the string pointed to by path and associates
    *  the stream pointed maintained by this object with it. The original stream
@@ -511,29 +497,7 @@ public:
    *  maintained by this object results in undefined behaviour.
    *  @return 0 upon success, EOF otherwise, in which case the error code is set.
    */
-  int fclose()
-  {
-    int result = 0;
-    if (file_)
-    {
-      if (popened_)
-      {
-#ifdef HAVE_PCLOSE
-        result = :: pclose(file_);
-#else
-        result = _pclose(file_);
-#endif
-      }
-      else
-      {
-        result = STDIO_NAMESPACE fclose(file_);
-      }
-      // After calling fclose() once, the FILE* is gone even if fclose() failed.
-      file_ = NULL;
-    }
-    if (result) storeLastError();
-    return result;
-  }
+  int fclose();
 
   /** waits for the associated process (created with popen) to terminate and
    *  returns the exit status of the command as returned by wait4.
@@ -859,7 +823,6 @@ public:
    */
   offile_off_t ftell()
   {
-    offile_off_t result;
 #ifdef _WIN32
     // Windows does not have a 64-bit ftell, and _telli64 cannot be used
     // because it operates on file descriptors and ignores FILE buffers.
@@ -871,8 +834,9 @@ public:
       storeLastError();
       return -1;
     }
-    return pos;
+    return OFstatic_cast(offile_off_t, pos);
 #else
+    offile_off_t result;
 #ifdef HAVE_FSEEKO
 #ifdef EXPLICIT_LFS_64
     result = :: ftello64(file_);
@@ -882,9 +846,9 @@ public:
 #else
     result = STDIO_NAMESPACE ftell(file_);
 #endif
-#endif
     if (result < 0) storeLastError();
     return result;
+#endif
   }
 
   /** alternate interface equivalent to ftell, storing the current value of the

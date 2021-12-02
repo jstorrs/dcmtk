@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2002-2018, OFFIS e.V.
+ *  Copyright (C) 2002-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -26,14 +26,12 @@
 #include "dcmtk/ofstd/ofconsol.h"
 #include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/ofstd/ofrand.h"
+#include "dcmtk/ofstd/ofdiag.h"      /* for DCMTK_DIAGNOSTIC macros */
+
+#include DCMTK_DIAGNOSTIC_IGNORE_CONST_EXPRESSION_WARNING
 
 #define OFTEST_OFSTD_ONLY
 #include "dcmtk/ofstd/oftest.h"
-
-#define INCLUDE_CTIME
-#define INCLUDE_CSTDLIB
-#define INCLUDE_IOSTREAM
-#include "dcmtk/ofstd/ofstdinc.h"
 
 // size of block (Uint32 values, not bytes): 1 MByte
 #define BLOCKSIZE 0x40000
@@ -232,7 +230,8 @@ static OFBool seekFile(OFFile &file)
     if (1 == file.fread(&v, sizeof(Uint32), 1))
     {
       // successfully read value. Now check if the value is correct.
-      expected = (OFstatic_cast(offile_off_t, FILESIZE) * BLOCKSIZE * sizeof(Uint32) + pos) / sizeof(Uint32);
+      expected = OFstatic_cast(offile_off_t, FILESIZE);
+      expected = (expected * BLOCKSIZE * sizeof(Uint32) + pos) / sizeof(Uint32);
       if (v != OFstatic_cast(Uint32, expected))
       {
         COUT << "\nError: unexpected data read after fseek(SEEK_END) to block " << block

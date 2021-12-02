@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2000-2020, OFFIS e.V.
+ *  Copyright (C) 2000-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -84,7 +84,7 @@ int DcmSignatureHelper::readNextToken(const char *c, int& pos, DcmTagKey& key, U
     unsigned int group=0;
     unsigned int elem=0;
     if (2 != sscanf(c+spos,"%x,%x", &group, &elem)) return 0; // parse error
-    key = DcmTagKey(group,elem);
+    key = DcmTagKey(OFstatic_cast(Uint16, group),OFstatic_cast(Uint16, elem));
     pos = ++lpos;
     return 1; // tag key
   }
@@ -182,7 +182,7 @@ OFBool DcmSignatureHelper::addTag(const char *c, DcmAttributeTag& tagList)
     }
     dcmDataDict.rdunlock();
   } else {
-    if (EC_Normal == tagList.putTagVal(DcmTagKey(group,elem), tagList.getVM())) result = OFTrue;
+    if (EC_Normal == tagList.putTagVal(DcmTagKey(OFstatic_cast(Uint16, group),OFstatic_cast(Uint16, elem)), tagList.getVM())) result = OFTrue;
   }
   return result;
 }
@@ -851,7 +851,7 @@ void DcmSignatureHelper::printSignatureDetails(DcmSignature& sig, DcmStack& stac
       DCMSIGN_INFO("      Validity                : not before " << aString);
       cert->getCertValidityNotAfter(aString);
       DCMSIGN_INFO("      Validity                : not after " << aString);
-      const char *ecname = NULL;
+      OFString ecname;
       switch (cert->getKeyType())
       {
         case EKT_RSA:
@@ -862,7 +862,7 @@ void DcmSignatureHelper::printSignatureDetails(DcmSignature& sig, DcmStack& stac
           break;
         case EKT_EC:
           ecname = cert->getCertCurveName();
-          if (ecname)
+          if (ecname.length() > 0)
           {
             DCMSIGN_INFO("      Public key              : EC, curve " << ecname << ", " << cert->getCertKeyBits() << " bits");
           }

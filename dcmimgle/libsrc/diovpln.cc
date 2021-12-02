@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1996-2019, OFFIS e.V.
+ *  Copyright (C) 1996-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -60,13 +60,14 @@ DiOverlayPlane::DiOverlayPlane(const DiDocument *docu,
     DefaultMode(EMO_Graphic),
     Label(),
     Description(),
-    GroupNumber(group),
+    GroupNumber(OFstatic_cast(Uint16, group)),
     Valid(0),
     Visible(0),
     BitPos(0),
     StartBitPos(0),
     StartLeft(0),
     StartTop(0),
+    MultiframeOverlay(0),
     EmbeddedData(0),
     Ptr(NULL),
     StartPtr(NULL),
@@ -77,7 +78,7 @@ DiOverlayPlane::DiOverlayPlane(const DiDocument *docu,
         /* determine first frame to be processed */
         FirstFrame = docu->getFrameStart();
         /* specify overlay group number */
-        DcmTagKey tag(group, DCM_OverlayRows.getElement() /* dummy */);
+        DcmTagKey tag(OFstatic_cast(Uint16, group), DCM_OverlayRows.getElement() /* dummy */);
         /* get descriptive data */
         tag.setElement(DCM_OverlayLabel.getElement());
         docu->getValue(tag, Label);
@@ -91,6 +92,7 @@ DiOverlayPlane::DiOverlayPlane(const DiDocument *docu,
         Sint32 sl = 0;
         /* multi-frame overlays */
         tag.setElement(DCM_NumberOfFramesInOverlay.getElement());
+        MultiframeOverlay = (docu->search(tag) != NULL);
         docu->getValue(tag, sl);
         NumberOfFrames = (sl < 1) ? 1 : OFstatic_cast(Uint32, sl);
         tag.setElement(DCM_ImageFrameOrigin.getElement());
@@ -103,6 +105,8 @@ DiOverlayPlane::DiOverlayPlane(const DiDocument *docu,
         if (Valid)
         {
             DCMIMGLE_DEBUG("processing overlay plane in group 0x" << STD_NAMESPACE hex << group);
+            if (MultiframeOverlay)
+                DCMIMGLE_TRACE("  this is a multi-frame overlay with " << NumberOfFrames << " frame(s) starting at frame " << (ImageFrameOrigin + 1));
             if (docu->getValue(tag, Top, 1) < 2)
                 DCMIMGLE_WARN("missing second value for 'OverlayOrigin' ... assuming 'Top' = " << Top);
         }
@@ -111,6 +115,8 @@ DiOverlayPlane::DiOverlayPlane(const DiDocument *docu,
         if (Valid)
         {
             DCMIMGLE_DEBUG("processing overlay plane in group 0x" << STD_NAMESPACE hex << group);
+            if (MultiframeOverlay)
+                DCMIMGLE_TRACE("  this is a multi-frame overlay with " << NumberOfFrames << " frame(s) starting at frame " << (ImageFrameOrigin + 1));
             if (docu->getValue(tag, Left, 1) < 2)
                 DCMIMGLE_WARN("missing second value for 'OverlayOrigin' ... assuming 'Left' = " << Left);
         }
@@ -189,6 +195,13 @@ DiOverlayPlane::DiOverlayPlane(const DiDocument *docu,
                 Data = NULL;
             } else
                 Valid = (Data != NULL);
+            /* check condition for multi-frame overlay */
+            if (NumberOfFrames > 1)
+            {
+                Sint32 numFrames = 0;
+                if (!docu->getValue(DCM_NumberOfFrames, numFrames) || (numFrames == 1))
+                    DCMIMGLE_WARN("found multi-frame overlay in group 0x" << STD_NAMESPACE hex << group << " for single frame image");
+            }
         }
         if (Valid)
         {
@@ -229,13 +242,14 @@ DiOverlayPlane::DiOverlayPlane(const unsigned int group,
     DefaultMode(mode),
     Label(),
     Description(),
-    GroupNumber(group),
+    GroupNumber(OFstatic_cast(Uint16, group)),
     Valid(0),
     Visible((mode == EMO_BitmapShutter) ? 1 : 0),
     BitPos(0),
     StartBitPos(0),
     StartLeft(0),
     StartTop(0),
+    MultiframeOverlay(0),
     EmbeddedData(0),
     Ptr(NULL),
     StartPtr(NULL),
@@ -279,7 +293,7 @@ DiOverlayPlane::DiOverlayPlane(DiOverlayPlane *plane,
     Rows(rows),
     Columns(columns),
     BitsAllocated(16),
-    BitPosition(bit),
+    BitPosition(OFstatic_cast(Uint16, bit)),
     Foreground(plane->Foreground),
     Threshold(plane->Threshold),
     PValue(0),
@@ -294,6 +308,7 @@ DiOverlayPlane::DiOverlayPlane(DiOverlayPlane *plane,
     StartBitPos(0),
     StartLeft(plane->StartLeft),
     StartTop(plane->StartTop),
+    MultiframeOverlay(plane->MultiframeOverlay),
     EmbeddedData(0),
     Ptr(NULL),
     StartPtr(NULL),

@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2020, OFFIS e.V.
+ *  Copyright (C) 1994-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were partly developed by
@@ -63,11 +63,6 @@
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#include "dcmtk/ofstd/ofstdinc.h"
-
 #include "dcmtk/ofstd/ofstream.h"
 #include "dcmtk/ofstd/ofstd.h"  // for OFStandard::safeSubtract() and safeAdd()
 #include "dcmtk/dcmnet/dicom.h"
@@ -75,7 +70,8 @@
 #include "dcmtk/dcmnet/lst.h"
 #include "dcmtk/dcmnet/dul.h"
 #include "dcmtk/dcmnet/diutil.h"
-#include "dulstruc.h"
+#include "dcmtk/dcmnet/dulstruc.h"
+#include "dcmtk/dcmnet/helpers.h"
 #include "dulpriv.h"
 #include "dcmtk/ofstd/ofconsol.h"
 
@@ -101,6 +97,7 @@ static OFCondition
 parseSCUSCPRole(PRV_SCUSCPROLE * role, unsigned char *buf,
                 unsigned long *length, unsigned long availData);
 static void trim_trailing_spaces(char *s);
+
 
 static OFCondition
 parseExtNeg(SOPClassExtendedNegotiationSubItem* extNeg, unsigned char *buf,
@@ -147,9 +144,6 @@ parseAssociate(unsigned char *buf, unsigned long pduLength,
         * context;
 
     (void) memset(assoc, 0, sizeof(*assoc));
-    if ((assoc->presentationContextList = LST_Create()) == NULL) return EC_MemoryExhausted;
-    if ((assoc->userInfo.SCUSCPRoleList = LST_Create()) == NULL) return EC_MemoryExhausted;
-
     // Check if the PDU actually is long enough for the fields we read
     if (pduLength < 2 + 2 + 16 + 16 + 32)
         return makeLengthError("associate PDU", pduLength, 2 + 2 + 16 + 16 + 32);
@@ -210,6 +204,8 @@ parseAssociate(unsigned char *buf, unsigned long pduLength,
             << "Called AP Title:  " << assoc->calledAPTitle << OFendl
             << "Calling AP Title: " << assoc->callingAPTitle);
     }
+    if ((assoc->presentationContextList = LST_Create()) == NULL) return EC_MemoryExhausted;
+    if ((assoc->userInfo.SCUSCPRoleList = LST_Create()) == NULL) return EC_MemoryExhausted;
     while ((cond.good()) && (pduLength > 0))
     {
         type = *buf;
@@ -224,43 +220,79 @@ parseAssociate(unsigned char *buf, unsigned long pduLength,
             {
                 buf += itemLength;
                 if (!OFStandard::safeSubtract(pduLength, itemLength, pduLength))
-                  return makeUnderflowError("Application Context item", pduLength, itemLength);
-                DCMNET_TRACE("Successfully parsed Application Context");
+                {
+                    cond = makeUnderflowError("Application Context item", pduLength, itemLength);
+                }
+                else
+                {
+                    DCMNET_TRACE("Successfully parsed Application Context");
+                }
             }
             break;
         case DUL_TYPEPRESENTATIONCONTEXTRQ:
         case DUL_TYPEPRESENTATIONCONTEXTAC:
             context = (PRV_PRESENTATIONCONTEXTITEM*)malloc(sizeof(PRV_PRESENTATIONCONTEXTITEM));
-            if (context == NULL) return EC_MemoryExhausted;
-            (void) memset(context, 0, sizeof(*context));
-            cond = parsePresentationContext(type, context, buf, &itemLength, pduLength);
-            if (cond.bad()) return cond;
-            buf += itemLength;
-            if (!OFStandard::safeSubtract(pduLength, itemLength, pduLength))
-              return makeUnderflowError("Presentation Context item", pduLength, itemLength);
-            LST_Enqueue(&assoc->presentationContextList, (LST_NODE*)context);
-            DCMNET_TRACE("Successfully parsed Presentation Context");
+            if (context != NULL)
+            {
+                (void) memset(context, 0, sizeof(*context));
+                cond = parsePresentationContext(type, context, buf, &itemLength, pduLength);
+                if (cond.bad())
+                {
+                    free(context);
+                }
+                else
+                {
+                    buf += itemLength;
+                    if (!OFStandard::safeSubtract(pduLength, itemLength, pduLength))
+                    {
+                        cond =  makeUnderflowError("Presentation Context item", pduLength, itemLength);
+                    }
+                    else
+                    {
+                        LST_Enqueue(&assoc->presentationContextList, (LST_NODE*)context);
+                        DCMNET_TRACE("Successfully parsed Presentation Context");
+                    }
+                }
+            }
+            else
+            {
+                cond = EC_MemoryExhausted;
+            }
             break;
         case DUL_TYPEUSERINFO:
             // parse user info, which can contain several sub-items like User
             // Identity Negotiation or SOP Class Extended Negotiation
             cond = parseUserInfo(&assoc->userInfo, buf, &itemLength, assoc->type, pduLength);
-            if (cond.bad())
-                return cond;
-            buf += itemLength;
-            if (!OFStandard::safeSubtract(pduLength, itemLength, pduLength))
-              return makeUnderflowError("User Information item", pduLength, itemLength);
-            DCMNET_TRACE("Successfully parsed User Information");
+            if (cond.good())
+            {
+                buf += itemLength;
+                if (!OFStandard::safeSubtract(pduLength, itemLength, pduLength))
+                {
+                    cond = makeUnderflowError("User Information item", pduLength, itemLength);
+                }
+                else
+                {
+                    DCMNET_TRACE("Successfully parsed User Information");
+                }
+            }
             break;
         default:
             cond = parseDummy(buf, &itemLength, pduLength);
-            if (cond.bad())
-                return cond;
-            buf += itemLength;
-            if (!OFStandard::safeSubtract(pduLength, itemLength, pduLength))
-              return makeUnderflowError("unknown item type", pduLength, itemLength);
+            if (cond.good())
+            {
+                buf += itemLength;
+                if (!OFStandard::safeSubtract(pduLength, itemLength, pduLength))
+                {
+                    cond = makeUnderflowError("unknown item type", pduLength, itemLength);
+                }
+            }
             break;
         }
+    }
+    if (cond.bad())
+    {
+      destroyAssociatePDUPresentationContextList(&assoc->presentationContextList);
+      destroyUserInformationLists(&assoc->userInfo);
     }
     return cond;
 }
@@ -409,7 +441,11 @@ parsePresentationContext(unsigned char type,
                 subItem = (DUL_SUBITEM*)malloc(sizeof(DUL_SUBITEM));
                 if (subItem == NULL) return EC_MemoryExhausted;
                 cond = parseSubItem(subItem, buf, &length, presentationLength);
-                if (cond.bad()) return cond;
+                if (cond.bad())
+                {
+                    free(subItem);
+                    return cond;
+                }
                 LST_Enqueue(&context->transferSyntaxList, (LST_NODE*)subItem);
                 buf += length;
                 if (!OFStandard::safeSubtract(presentationLength, length, presentationLength))
@@ -530,7 +566,11 @@ parseUserInfo(DUL_USERINFO * userInfo,
             role = (PRV_SCUSCPROLE*)malloc(sizeof(PRV_SCUSCPROLE));
             if (role == NULL) return EC_MemoryExhausted;
             cond = parseSCUSCPRole(role, buf, &length, userLength);
-            if (cond.bad()) return cond;
+            if (cond.bad())
+            {
+                free(role);
+                return cond;
+            }
             LST_Enqueue(&userInfo->SCUSCPRoleList, (LST_NODE*)role);
             buf += length;
             if (!OFStandard::safeSubtract(userLength, OFstatic_cast(short unsigned int, length), userLength))
@@ -810,7 +850,7 @@ parseExtNeg(SOPClassExtendedNegotiationSubItem* extNeg, unsigned char *buf,
 
     int remain = (int)(*length - (buf - bufStart));
 
-    extNeg->serviceClassAppInfoLength = remain;
+    extNeg->serviceClassAppInfoLength = OFstatic_cast(unsigned short, remain);
     extNeg->serviceClassAppInfo = new unsigned char[remain];
     for (int i=0; i<remain; i++) {
         extNeg->serviceClassAppInfo[i] = *buf++;

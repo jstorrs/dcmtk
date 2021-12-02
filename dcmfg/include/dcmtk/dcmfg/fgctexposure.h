@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2019, Open Connections GmbH
+ *  Copyright (C) 2019-2021, Open Connections GmbH
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation are maintained by
@@ -29,6 +29,8 @@
 #include "dcmtk/dcmiod/iodmacro.h"
 #include "dcmtk/ofstd/ofstring.h"
 #include "dcmtk/ofstd/ofvector.h"
+
+#include <cmath>
 
 /** Class representing the "CT Exposure" Functional Group Macro.
  */
@@ -235,14 +237,14 @@ public:
          */
         virtual OFCondition getExposureModulationType(OFString& value, const signed long pos = 0);
 
-        /** Get Estimated Dose Saving
+        /** Get Estimated Dose Saving (retired)
          *  @param  value Reference to variable that should hold the result
          *  @param  pos Index of the value to get (0..vm-1), -1 for all components
          *  @return EC_Normal, if value could be returned, error otherwise
          */
         virtual OFCondition getEstimatedDoseSaving(OFString& value, const signed long pos = 0);
 
-        /** Get Estimated Dose Saving
+        /** Get Estimated Dose Saving (retired)
          *  @param  value Reference to variable that should hold the result
          *  @param  pos Index of the value to get (0..vm-1)
          *  @return EC_Normal, if value could be returned, error otherwise
@@ -337,7 +339,7 @@ public:
          */
         virtual OFCondition setExposureModulationType(const OFString& value, const OFBool checkValue = OFTrue);
 
-        /** Set Estimated Dose Saving
+        /** Set Estimated Dose Saving (retired)
          *  @param  value Value that should be set
          *  @param  checkValue If OFTrue, basic checks are performed whether the value is
          *          valid for this attribute
@@ -388,7 +390,7 @@ public:
         /// Exposure Modulation Type (CS, 1-n, 1C)
         DcmCodeString m_ExposureModulationType;
 
-        /// Estimated Dose Saving (FD, 1, 2C)
+        /// Estimated Dose Saving (FD, 1, 2C), retired
         DcmFloatingPointDouble m_EstimatedDoseSaving;
 
         /// CTDIvol (FD, 1, 2C)

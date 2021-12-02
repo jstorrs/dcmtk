@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2019-2020, OFFIS e.V.
+ *  Copyright (C) 2019-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -27,6 +27,9 @@
 #include "dcmtk/ofstd/oftest.h"
 
 #include "dcmtk/dcmect/enhanced_ct.h"
+
+#include "dcmtk/dcmdata/dcxfer.h"
+#include "dcmtk/dcmdata/dcswap.h"
 
 #include "dcmtk/dcmfg/concatenationcreator.h"
 #include "dcmtk/dcmfg/concatenationloader.h"
@@ -295,7 +298,6 @@ static void addSharedFGs(EctEnhancedCT* ct)
         OFCHECK(exp_item->setCTDIVol(0.1).good());
         CodeSequenceMacro* phantom_item = new CodeSequenceMacro("113682", "DCM", "ACR Accreditation Phantom - CT");
         exp_item->getCTDIPhantomTypeCodeSequence().push_back(phantom_item);
-        OFCHECK(exp_item->setEstimatedDoseSaving(0.2).good());
         OFCHECK(exp_item->setExposureInMas(0.3).good());
         OFCHECK(exp_item->setExposureModulationType("WEIRD").good());
         OFCHECK(exp_item->setExposureTimeInMs(0.4).good());
@@ -619,6 +621,8 @@ static void checkConcatenationInstance(size_t numInstance, EctEnhancedCT* srcIns
         // Check that all pixels are set to their original source instances frame number (starting from 1)
         for (size_t pix = 0; pix < NUM_PIXELS_PER_FRAME; pix++)
         {
+            // We need to swap the 16 bit value if the test runs on big endian platforms
+            swapIfNecessary(gLocalByteOrder, EBO_LittleEndian, &frame[pix], 2, sizeof(Uint16));
             OFCHECK(frame[pix] == numInstance + 1);
         }
         delete concat;
@@ -658,7 +662,11 @@ static void prepareExpectedDump()
 {
     EXPECTED_DUMP += "\n";
     EXPECTED_DUMP += "# Dicom-Data-Set\n";
-    EXPECTED_DUMP += "# Used TransferSyntax: Little Endian Explicit\n";
+    // DcmDataset.print() produces dumps in local endianess, so make sure the dump reflects the current machine
+    if (gLocalByteOrder == EBO_LittleEndian)
+        EXPECTED_DUMP += "# Used TransferSyntax: Little Endian Explicit\n";
+    else
+        EXPECTED_DUMP += "# Used TransferSyntax: Big Endian Explicit\n";
     EXPECTED_DUMP += "(0008,0008) CS [ORIGINAL\\PRIMARY\\VOLUME\\MAXIMUM]        #  32, 4 ImageType\n";
     EXPECTED_DUMP += "(0008,0016) UI =EnhancedCTImageStorage                  #  28, 1 SOPClassUID\n";
     EXPECTED_DUMP
@@ -789,7 +797,7 @@ static void prepareExpectedDump()
     EXPECTED_DUMP += "      (fffe,e00d) na (ItemDelimitationItem for re-encoding)   #   0, 0 ItemDelimitationItem\n";
     EXPECTED_DUMP += "    (fffe,e0dd) na (SequenceDelimitationItem for re-encod.) #   0, 0 SequenceDelimitationItem\n";
     EXPECTED_DUMP += "    (0018,9321) SQ (Sequence with explicit length #=1)      #   0, 1 CTExposureSequence\n";
-    EXPECTED_DUMP += "      (fffe,e000) na (Item with explicit length #=10)         #   0, 1 Item\n";
+    EXPECTED_DUMP += "      (fffe,e000) na (Item with explicit length #=9)          #   0, 1 Item\n";
     EXPECTED_DUMP += "        (0018,115e) DS [0.5]                                    #   4, 1 "
                      "ImageAndFluoroscopyAreaDoseProduct\n";
     EXPECTED_DUMP
@@ -807,7 +815,6 @@ static void prepareExpectedDump()
         += "        (fffe,e0dd) na (SequenceDelimitationItem for re-encod.) #   0, 0 SequenceDelimitationItem\n";
     EXPECTED_DUMP
         += "        (0018,9323) CS [WEIRD]                                  #   6, 1 ExposureModulationType\n";
-    EXPECTED_DUMP += "        (0018,9324) FD 0.2                                      #   8, 1 EstimatedDoseSaving\n";
     EXPECTED_DUMP += "        (0018,9328) FD 0.4                                      #   8, 1 ExposureTimeInms\n";
     EXPECTED_DUMP += "        (0018,9330) FD 0.7                                      #   8, 1 XRayTubeCurrentInmA\n";
     EXPECTED_DUMP += "        (0018,9332) FD 0.3                                      #   8, 1 ExposureInmAs\n";

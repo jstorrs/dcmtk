@@ -2,10 +2,13 @@
 include_directories(${LIBXML_INCDIR})
 
 # declare executables
-foreach(PROGRAM dcm2xml dcmconv dcmcrle dcmdrle dcmdump dcmdump+ dcmftest+ dcmgpdir dump2dcm xml2dcm stl2dcm pdf2dcm dcm2pdf img2dcm dcm2json cda2dcm)
-  DCMTK_ADD_EXECUTABLE(${PROGRAM} ${PROGRAM})
+foreach(PROGRAM dcm2xml dcmconv dcmcrle dcmdrle dcmdump dcmdump+ dcmftest+ dcmftest dcmgpdir dump2dcm xml2dcm stl2dcm pdf2dcm dcm2pdf img2dcm dcm2json cda2dcm)
+  DCMTK_ADD_EXECUTABLE(${PROGRAM} ${PROGRAM}.cc)
 endforeach()
-DCMTK_ADD_EXECUTABLE(dcmodify dcmodify mdfconen mdfdsman)
+DCMTK_ADD_EXECUTABLE(dcmodify
+  dcmodify.cc
+  mdfconen.cc
+  mdfdsman.cc)
 
 # make sure executables are linked to the corresponding libraries
 foreach(PROGRAM dcm2xml dcmconv dcmcrle dcmdrle dcmdump dcmdump+ dcmgpdir dcmodify dump2dcm xml2dcm stl2dcm pdf2dcm dcm2pdf img2dcm dcm2json cda2dcm)

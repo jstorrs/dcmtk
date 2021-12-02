@@ -247,13 +247,23 @@ certification authority:
   +cd   --add-cert-dir  [d]irectory: string
           add certificates in d to list of certificates
 
+  +crl  --add-crl-file  [f]ilename: string
+          add certificate revocation list file
+          (implies --enable-crl-vfy)
+
+  +crv  --enable-crl-vfy
+          enable leaf CRL verification
+
+  +cra  --enable-crl-all
+          enable full chain CRL verification
+
 security profile:
 
-  +px   --profile-bcp195
-          BCP 195 TLS Profile (default)
-
   +py   --profile-bcp195-nd
-          Non-downgrading BCP 195 TLS Profile
+          Non-downgrading BCP 195 TLS Profile (default)
+
+  +px   --profile-bcp195
+          BCP 195 TLS Profile
 
   +pz   --profile-bcp195-ex
           Extended BCP 195 TLS Profile
@@ -732,7 +742,9 @@ SimplifiedAdultEchoSRStorage                         1.2.840.10008.5.1.4.1.1.88.
 PatientRadiationDoseSRStorage                        1.2.840.10008.5.1.4.1.1.88.73
 PlannedImagingAgentAdministrationSRStorage           1.2.840.10008.5.1.4.1.1.88.74
 PerformedImagingAgentAdministrationSRStorage         1.2.840.10008.5.1.4.1.1.88.75
+EnhancedXRayRadiationDoseSRStorage                   1.2.840.10008.5.1.4.1.1.88.76
 ContentAssessmentResultsStorage                      1.2.840.10008.5.1.4.1.1.90.1
+MicroscopyBulkSimpleAnnotationsStorage               1.2.840.10008.5.1.4.1.1.91.1
 EncapsulatedPDFStorage                               1.2.840.10008.5.1.4.1.1.104.1
 EncapsulatedCDAStorage                               1.2.840.10008.5.1.4.1.1.104.2
 EncapsulatedSTLStorage                               1.2.840.10008.5.1.4.1.1.104.3
@@ -765,6 +777,8 @@ RTRadiationSalvageRecordStorage                      1.2.840.10008.5.1.4.1.1.481
 TomotherapeuticRadiationRecordStorage                1.2.840.10008.5.1.4.1.1.481.18
 CArmPhotonElectronRadiationRecordStorage             1.2.840.10008.5.1.4.1.1.481.19
 RoboticRadiationRecordStorage                        1.2.840.10008.5.1.4.1.1.481.20
+RTRadiationSetDeliveryInstructionStorage             1.2.840.10008.5.1.4.1.1.481.21
+RTTreatmentPreparationStorage                        1.2.840.10008.5.1.4.1.1.481.22
 DICOS_CTImageStorage                                 1.2.840.10008.5.1.4.1.1.501.1
 DICOS_DigitalXRayImageStorageForPresentation         1.2.840.10008.5.1.4.1.1.501.2.1
 DICOS_DigitalXRayImageStorageForProcessing           1.2.840.10008.5.1.4.1.1.501.2.2

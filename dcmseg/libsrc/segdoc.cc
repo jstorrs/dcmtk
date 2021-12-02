@@ -457,7 +457,8 @@ OFCondition DcmSegmentation::addFrame(Uint8* pixData)
 {
     OFCondition result;
 
-    Uint16 rows, cols;
+    Uint16 rows = 0;
+    Uint16 cols = 0;
     if (getImagePixel().getRows(rows).good() && getImagePixel().getColumns(cols).good())
     {
         DcmIODTypes::Frame* frame = NULL;
@@ -1032,7 +1033,7 @@ OFCondition DcmSegmentation::writeMultiFrameDimensionModule(DcmItem& dataset)
     return result;
 }
 
-OFCondition DcmSegmentation::writeFractionalFrames(Uint8* pixData, const Uint32 numFrames, const size_t pixDataLength)
+OFCondition DcmSegmentation::writeFractionalFrames(Uint8* pixData, const Uint32 /* numFrames */, const size_t /* pixDataLength */)
 {
     OFVector<DcmIODTypes::Frame*>::iterator it = m_Frames.begin();
     // Just copy bytes for each frame as is

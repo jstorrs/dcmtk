@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 1994-2020, OFFIS e.V.
+ *  Copyright (C) 1994-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -21,12 +21,6 @@
 
 #include "dcmtk/config/osconfig.h" /* make sure OS specific configuration is included first */
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CSTDARG
-#define INCLUDE_CERRNO
-#include "dcmtk/ofstd/ofstdinc.h"
 #include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/ofstd/ofconapp.h"
 #include "dcmtk/dcmnet/dicom.h"
@@ -180,7 +174,7 @@ addOverrideKey(OFConsoleApplication& app, const char *s)
       if (eqPos != OFString_npos)
         valStr = toParse.substr(eqPos+1,toParse.length());
     }
-    DcmTag tag(g,e);
+    DcmTag tag(OFstatic_cast(Uint16, g), OFstatic_cast(Uint16, e));
     if (tag.error() != EC_Normal) {
         sprintf(msg2, "unknown tag: (%04x,%04x)", g, e);
         app.printError(msg2);
@@ -222,7 +216,7 @@ int
 main(int argc, char *argv[])
 {
   T_ASC_Parameters *params = NULL;
-  const char *opt_peer;
+  const char *opt_peer = NULL;
   OFCmdUnsignedInt opt_port = 104;
   DIC_NODENAME peerHost;
   T_ASC_Association *assoc = NULL;

@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2002-2020, OFFIS e.V.
+ *  Copyright (C) 2002-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -25,9 +25,6 @@
 #include "dcmtk/dcmdata/dcerror.h"
 #include "dcmtk/ofstd/ofconsol.h"
 
-#define INCLUDE_CSTDIO
-#include "dcmtk/ofstd/ofstdinc.h"
-
 BEGIN_EXTERN_C
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -38,7 +35,7 @@ BEGIN_EXTERN_C
 END_EXTERN_C
 
 
-DcmStdoutConsumer::DcmStdoutConsumer(const OFFilename &filename)
+DcmStdoutConsumer::DcmStdoutConsumer(const OFFilename & /* filename */)
 : DcmConsumer()
 , file_()
 , status_(EC_Normal)

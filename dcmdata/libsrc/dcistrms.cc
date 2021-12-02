@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2002-2020, OFFIS e.V.
+ *  Copyright (C) 2002-2021, OFFIS e.V.
  *  All rights reserved.  See COPYRIGHT file for details.
  *
  *  This software and supporting documentation were developed by
@@ -24,10 +24,6 @@
 #include "dcmtk/dcmdata/dcistrms.h"
 #include "dcmtk/dcmdata/dcerror.h"
 
-#define INCLUDE_CSTDIO
-#define INCLUDE_CERRNO
-#include "dcmtk/ofstd/ofstdinc.h"
-
 BEGIN_EXTERN_C
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -45,6 +41,11 @@ DcmStdinStream::DcmStdinStream()
 , producer_()
 , buf_(new unsigned char[DCMSTDINSTREAMBUFSIZE])
 {
+#ifdef _WIN32
+    // Set "stdin" to binary mode
+    int result = setmode(fileno(stdin), O_BINARY);
+    if (result == -1) DCMDATA_ERROR("Failed to switch stdin to binary mode");
+#endif
 }
 
 DcmStdinStream::~DcmStdinStream()
@@ -68,7 +69,7 @@ void DcmStdinStream::fillBuffer()
   size_t numBytes = fread(buf_, 1, DCMSTDINSTREAMBUFSIZE, stdin);
 
   // make the buffer available to the buffer producer
-  producer_.setBuffer(buf_, numBytes);
+  producer_.setBuffer(buf_, OFstatic_cast(offile_off_t, numBytes));
 
   // check if we are at the end of stream, and if so, notify the buffer producer
   if (feof(stdin)) producer_.setEos();

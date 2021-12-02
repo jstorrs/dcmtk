@@ -23,12 +23,6 @@
 
 #include "dcmtk/dcmnet/dfindscu.h"
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CSTDARG
-#define INCLUDE_CERRNO
-#include "dcmtk/ofstd/ofstdinc.h"
 #include "dcmtk/dcmnet/diutil.h"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmdata/dcdicent.h"
@@ -716,7 +710,7 @@ OFCondition DcmFindSCU::findSCU(
     int n = repeatCount;
 
     /* prepare C-FIND-RQ message */
-    bzero(OFreinterpret_cast(char*, &req), sizeof(req));
+    memset(OFreinterpret_cast(char*, &req), 0, sizeof(req));
     OFStandard::strlcpy(req.AffectedSOPClassUID, abstractSyntax, sizeof(req.AffectedSOPClassUID));
     req.DataSetType = DIMSE_DATASET_PRESENT;
     req.Priority = DIMSE_PRIORITY_MEDIUM;

@@ -30,14 +30,6 @@
 #include <ws2tcpip.h>
 #endif
 
-#define INCLUDE_CSTDLIB
-#define INCLUDE_CSTDIO
-#define INCLUDE_CSTRING
-#define INCLUDE_CTIME
-#define INCLUDE_LIBC
-#define INCLUDE_UNISTD
-#include "dcmtk/ofstd/ofstdinc.h"
-
 BEGIN_EXTERN_C
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -198,6 +190,7 @@ static const UIDNameMap uidNameMap[] = {
     { UID_EnhancedSRStorage,                                   "EnhancedSRStorage" },
     { UID_EnhancedUSVolumeStorage,                             "EnhancedUSVolumeStorage" },
     { UID_EnhancedXAImageStorage,                              "EnhancedXAImageStorage" },
+    { UID_EnhancedXRayRadiationDoseSRStorage,                  "EnhancedXRayRadiationDoseSRStorage" },
     { UID_EnhancedXRFImageStorage,                             "EnhancedXRFImageStorage" },
     { UID_ExtensibleSRStorage,                                 "ExtensibleSRStorage" },
     { UID_GeneralAudioWaveformStorage,                         "GeneralAudioWaveformStorage" },
@@ -222,6 +215,7 @@ static const UIDNameMap uidNameMap[] = {
     { UID_MacularGridThicknessAndVolumeReportStorage,          "MacularGridThicknessAndVolumeReportStorage" },
     { UID_MammographyCADSRStorage,                             "MammographyCADSRStorage" },
     { UID_MediaStorageDirectoryStorage,                        "MediaStorageDirectoryStorage" },
+    { UID_MicroscopyBulkSimpleAnnotationsStorage,              "MicroscopyBulkSimple​AnnotationsStorage​" },
     { UID_MRImageStorage,                                      "MRImageStorage" },
     { UID_MRSpectroscopyStorage,                               "MRSpectroscopyStorage" },
     { UID_MultichannelRespiratoryWaveformStorage,              "MultichannelRespiratoryWaveformStorage" },
@@ -266,9 +260,11 @@ static const UIDNameMap uidNameMap[] = {
     { UID_RTPlanStorage,                                       "RTPlanStorage" },
     { UID_RTRadiationRecordSetStorage,                         "RTRadiationRecordSetStorage" },
     { UID_RTRadiationSalvageRecordStorage,                     "RTRadiationSalvageRecordStorage" },
+    { UID_RTRadiationSetDeliveryInstructionStorage,            "RTRadiationSetDeliveryInstructionStorage" },
     { UID_RTRadiationSetStorage,                               "RTRadiationSetStorage" },
     { UID_RTSegmentAnnotationStorage,                          "RTSegmentAnnotationStorage" },
     { UID_RTStructureSetStorage,                               "RTStructureSetStorage" },
+    { UID_RTTreatmentPreparationStorage,                       "RTTreatmentPreparationStorage" },
     { UID_RTTreatmentSummaryRecordStorage,                     "RTTreatmentSummaryRecordStorage" },
     { UID_SecondaryCaptureImageStorage,                        "SecondaryCaptureImageStorage" },
     { UID_SegmentationStorage,                                 "SegmentationStorage" },
@@ -663,6 +659,7 @@ const char* dcmAllStorageSOPClassUIDs[] = {
     UID_EnhancedSRStorage,
     UID_EnhancedUSVolumeStorage,
     UID_EnhancedXAImageStorage,
+    UID_EnhancedXRayRadiationDoseSRStorage,
     UID_EnhancedXRFImageStorage,
     UID_ExtensibleSRStorage,
     UID_GeneralAudioWaveformStorage,
@@ -682,6 +679,7 @@ const char* dcmAllStorageSOPClassUIDs[] = {
     UID_LensometryMeasurementsStorage,
     UID_MacularGridThicknessAndVolumeReportStorage,
     UID_MammographyCADSRStorage,
+    UID_MicroscopyBulkSimpleAnnotationsStorage,
     UID_MRImageStorage,
     UID_MRSpectroscopyStorage,
     UID_MultichannelRespiratoryWaveformStorage,
@@ -725,9 +723,11 @@ const char* dcmAllStorageSOPClassUIDs[] = {
     UID_RTPlanStorage,
     UID_RTRadiationRecordSetStorage,
     UID_RTRadiationSalvageRecordStorage,
+    UID_RTRadiationSetDeliveryInstructionStorage,
     UID_RTRadiationSetStorage,
     UID_RTSegmentAnnotationStorage,
     UID_RTStructureSetStorage,
+    UID_RTTreatmentPreparationStorage,
     UID_RTTreatmentSummaryRecordStorage,
     UID_SecondaryCaptureImageStorage,
     UID_SegmentationStorage,
@@ -959,8 +959,10 @@ const char* dcmLongSCUStorageSOPClassUIDs[] = {
 //  UID_EncapsulatedMTLStorage,
 //  UID_EncapsulatedOBJStorage,
 //  UID_EncapsulatedSTLStorage,
+//  UID_EnhancedXRayRadiationDoseSRStorage,
 //  UID_ExtensibleSRStorage,
-//  UID_GrayscalePlanarMPRVolumetricPresentationStateStorage
+//  UID_GrayscalePlanarMPRVolumetricPresentationStateStorage,
+//  UID_MicroscopyBulkSimpleAnnotationsStorage,
 //  UID_MultichannelRespiratoryWaveformStorage,
 //  UID_MultipleVolumeRenderingVolumetricPresentationStateStorage,
 //  UID_OphthalmicOpticalCoherenceTomographyBscanVolumeAnalysisStorage,
@@ -977,8 +979,10 @@ const char* dcmLongSCUStorageSOPClassUIDs[] = {
 //  UID_RTPhysicianIntentStorage,
 //  UID_RTRadiationRecordSetStorage,
 //  UID_RTRadiationSalvageRecordStorage,
+//  UID_RTRadiationSetDeliveryInstructionStorage,
 //  UID_RTRadiationSetStorage,
 //  UID_RTSegmentAnnotationStorage,
+//  UID_RTTreatmentPreparationStorage,
 //  UID_SegmentedVolumeRenderingVolumetricPresentationStateStorage,
 //  UID_SimplifiedAdultEchoSRStorage,
 //  UID_SleepElectroencephalogramWaveformStorage,
@@ -1282,6 +1286,7 @@ static const DcmModalityTable modalities[] = {
     { UID_EnhancedSRStorage,                                       "SRe",  4096 },
     { UID_EnhancedUSVolumeStorage,                                 "USe",  512 * 512 },
     { UID_EnhancedXAImageStorage,                                  "XAe",  256 * 512 * 512 },
+    { UID_EnhancedXRayRadiationDoseSRStorage,                      "SRde", 4096 },
     { UID_EnhancedXRFImageStorage,                                 "RFe",  256 * 512 * 512 },
     { UID_ExtensibleSRStorage,                                     "SRx",  4096 },
     { UID_GeneralAudioWaveformStorage,                             "AUG",  4096 },
@@ -1305,6 +1310,7 @@ static const DcmModalityTable modalities[] = {
     { UID_LensometryMeasurementsStorage,                           "OPl",  4096 },
     { UID_MacularGridThicknessAndVolumeReportStorage,              "SRg",  4096 },
     { UID_MammographyCADSRStorage,                                 "SRm",  4096 },
+    { UID_MicroscopyBulkSimpleAnnotationsStorage,                  "MAs",  4096 },
     { UID_MRImageStorage,                                          "MR",   256 * 256 * 2 },
     { UID_MRSpectroscopyStorage,                                   "MRs",  256 * 512 * 512 },
     { UID_MultichannelRespiratoryWaveformStorage,                  "WVm",  4096 },
@@ -1349,9 +1355,11 @@ static const DcmModalityTable modalities[] = {
     { UID_RTPhysicianIntentStorage,                                "RIp",  4096 },
     { UID_RTRadiationRecordSetStorage,                             "RSr",  4096 },
     { UID_RTRadiationSalvageRecordStorage,                         "RRs",  4096 },
+    { UID_RTRadiationSetDeliveryInstructionStorage,                "RSd",  4096 },
     { UID_RTRadiationSetStorage,                                   "RSe",  4096 },  /* was RRs */
     { UID_RTSegmentAnnotationStorage,                              "RAs",  4096 },  /* was RRs */
     { UID_RTStructureSetStorage,                                   "RS",   4096 },
+    { UID_RTTreatmentPreparationStorage,                           "RTp",  4096 },
     { UID_RTTreatmentSummaryRecordStorage,                         "RTs",  4096 },
     { UID_SecondaryCaptureImageStorage,                            "SC",   512 * 512 * 2 },
     { UID_SegmentationStorage,                                     "SG",   4096 },
