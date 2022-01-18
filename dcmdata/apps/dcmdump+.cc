@@ -856,10 +856,12 @@ static int dumpFile(STD_NAMESPACE ostream &out,
 	    dset->print(out, printFlags, 0 /*level*/, pixelFileName, &pixelCounter);
 	}
     } else {
+        Tweak::FileBegin(ifname, out);
         OFBool firstTag = OFTrue;
         /* only print specified tags */
         for (int i = 0; i < printTagCount; i++)
         {
+        	Tweak::TagBegin(out);
             unsigned int group = 0xffff;
             unsigned int elem = 0xffff;
             DcmTagKey searchKey;
@@ -901,7 +903,9 @@ static int dumpFile(STD_NAMESPACE ostream &out,
                 }
             }
 	    }
+	    Tweak::TagEnd(out);
         }
+        Tweak::FileEnd(out);
     }
     return result;
 }

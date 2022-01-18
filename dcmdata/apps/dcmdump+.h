@@ -8,6 +8,7 @@ namespace Tweak {
   OFBool opt_print_filenames = OFFalse;
   OFBool opt_print_known_uid = OFFalse;
   OFBool opt_print_tag_heirarchy = OFTrue;
+  OFBool opt_tabulate = OFFalse;
   const char* opt_skip_UID = NULL;
   char field_sep[] = "\t";
   
@@ -22,6 +23,7 @@ namespace Tweak {
 	cmd.addOption("--print-all",           "-a",    "print empty elements and known UIDs");
 	cmd.addOption("--skip-uid",            "-U", 1, "[U]ID prefix",
 		                                        "don't print UIDs that begin with U");
+	cmd.addOption("--tabulate",            "-t",    "tabulate");
   }
 
 
@@ -42,6 +44,9 @@ namespace Tweak {
     }
     if (cmd.findOption("--skip-uid")) {
       cmd.getValue(opt_skip_UID);
+    }
+    if (cmd.findOption("--tabulate")) {
+      opt_tabulate = OFTrue;
     }
     if (isatty(STDIN_FILENO))
       opt_stdin = OFFalse;
@@ -96,13 +101,9 @@ namespace Tweak {
   }
 
   
-  void
-  DumpObject(const DcmStack& stack,
-	     const OFFilename &ifname,
-	     STD_NAMESPACE ostream &out,
-	     const size_t flags)
+  DcmObject*
+  GetObjectFromStack(const DcmStack& stack)
   {
-    Tweaks::PF_ValueOnly = OFTrue;
     DcmObject* obj = stack.top();
     switch (obj->ident())
       {
@@ -111,33 +112,116 @@ namespace Tweak {
       case EVR_item:
       case EVR_dirRecord:
       case EVR_PixelData:
-	      return;
-      case EVR_UI:
-	      if (!opt_print_known_uid && isKnownUID(obj))
-	        return;
+	return NULL;
       default:
-        break;
+	break;
       }
-    if (!opt_print_empty && (obj->getVM() == 0))
-      return;
-  
-    DcmTag tag = obj->getTag();
-    DcmVR vr;
-    vr.setVR(obj->ident());
-    const char* authority = tag.getPrivateCreator();
-    authority = authority ? authority : "DICOM";
-    if (opt_print_filenames)
-      out << ifname << field_sep;
-    out << authority << field_sep;
-    DumpTagPath(stack,out);
-    out << field_sep
-	<< vr.getVRName() << field_sep
-	<< tag.getTagName() << field_sep
-	<< obj->getVM() << field_sep;
-    obj->print(out, flags);
-    out << OFendl;
+    return obj;  
   }
 
+
+  void
+  SafePrint(DcmObject* obj,
+	    STD_NAMESPACE ostream &out,
+	    const size_t flags)
+  {
+    if (obj) {
+      std::stringstream ss;
+      Tweaks::PF_ValueOnly = OFTrue;    
+      obj->print(ss, flags);
+      std::string s = ss.str();
+      if (opt_tabulate) {
+	if (s.front() == '[' & s.back() == ']')
+	  s = s.substr(1, s.size()-2);
+      }
+      out << s;
+    }
+  }
+  
+  
+  void
+  PrintRow(const DcmStack& stack,
+	   DcmObject* obj,
+	   const OFFilename &ifname,
+	   STD_NAMESPACE ostream &out,
+	   const size_t flags)
+  {
+    if (obj) {
+      if (!opt_print_known_uid && isKnownUID(obj))
+	return;
+      
+      if (!opt_print_empty && (obj->getVM() == 0))
+	return;
+
+      DcmTag tag = obj->getTag();
+      DcmVR vr;
+      vr.setVR(obj->ident());
+      const char* authority = tag.getPrivateCreator();
+      authority = authority ? authority : "DICOM";
+      if (opt_print_filenames)
+	out << ifname << field_sep;
+      out << authority << field_sep;
+      DumpTagPath(stack,out);
+      out << field_sep
+	  << vr.getVRName() << field_sep
+	  << tag.getTagName() << field_sep
+	  << obj->getVM() << field_sep;
+      SafePrint(obj, out, flags);
+      out << OFendl;
+    }
+  }
+
+  
+  OFBool first_tag = OFFalse;
+  
+  void
+  FileBegin(const OFFilename &ifname,
+	    STD_NAMESPACE ostream &out)
+  {
+    first_tag = OFTrue;
+    if (opt_tabulate & opt_print_filenames)
+      out << ifname << field_sep;
+  }
+
+
+  void
+  TagBegin(STD_NAMESPACE ostream &out)
+  {
+    if (opt_tabulate & !first_tag)
+      out << field_sep;
+    first_tag = OFFalse;
+  }
+
+
+  void
+  TagEnd(STD_NAMESPACE ostream &out)
+  {
+    ;
+  }
+
+
+  void
+  FileEnd(STD_NAMESPACE ostream &out)
+  {
+    if (opt_tabulate)
+      out << OFendl;
+  }
+
+
+  void
+  DumpObject(const DcmStack& stack,
+	     const OFFilename &ifname,
+	     STD_NAMESPACE ostream &out,
+	     const size_t flags)
+  {
+    Tweaks::PF_ValueOnly = OFTrue;
+    DcmObject* obj = GetObjectFromStack(stack);
+    if (opt_tabulate)
+      SafePrint(obj, out, flags);
+    else
+      PrintRow(stack, obj, ifname, out, flags);
+  }
+  
 
   void
   DumpChildren(DcmObject* obj,
@@ -147,7 +231,9 @@ namespace Tweak {
   {
     DcmStack stack;
     while (obj->nextObject(stack, OFTrue).good()) {
+      TagBegin(out);
       DumpObject(stack, ifname, out, flags);
+      TagEnd(out);
     }
   }
   
@@ -160,8 +246,10 @@ namespace Tweak {
   {
     Tweaks::PF_ValueOnly = OFTrue;
     DcmFileFormat* dfile = static_cast<DcmFileFormat*>(dset);
+    FileBegin(ifname,out);
     DumpChildren(dfile->getMetaInfo(), ifname, out, flags);
     DumpChildren(dfile->getDataset(), ifname, out, flags);
+    FileEnd(out);
   }
 
   
