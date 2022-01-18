@@ -905,7 +905,7 @@ static int dumpFile(STD_NAMESPACE ostream &out,
 	    }
 	    Tweak::TagEnd(out);
         }
-        Tweak::FileEnd(out);
+        Tweak::FileEnd(ifname, out);
     }
     return result;
 }

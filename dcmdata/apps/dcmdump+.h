@@ -6,6 +6,7 @@ namespace Tweak {
   OFBool opt_print = OFTrue;
   OFBool opt_print_empty = OFFalse;
   OFBool opt_print_filenames = OFFalse;
+  OFBool opt_print_filename_last = OFFalse;
   OFBool opt_print_known_uid = OFFalse;
   OFBool opt_print_tag_heirarchy = OFTrue;
   OFBool opt_tabulate = OFFalse;
@@ -18,6 +19,7 @@ namespace Tweak {
     cmd.addGroup("tweaks:");
       cmd.addSubGroup("output:");
         cmd.addOption("--print-with-filename", "-H",    "print filenames");
+        cmd.addOption("--print-filename-last", "-He",   "print filenames on end");
         cmd.addOption("--print-empty",         "-e",    "print empty elements");
 	cmd.addOption("--print-known-uid",     "-k",    "print known UIDs");
 	cmd.addOption("--print-all",           "-a",    "print empty elements and known UIDs");
@@ -32,6 +34,8 @@ namespace Tweak {
   {
     if (cmd.findOption("--print-with-filename"))
       opt_print_filenames = OFTrue;
+    if (cmd.findOption("--print-filename-last"))
+      opt_print_filename_last = OFTrue;
     if (cmd.findOption("--print-all")) {
       opt_print_empty = OFTrue;
       opt_print_known_uid = OFTrue;
@@ -201,10 +205,15 @@ namespace Tweak {
 
 
   void
-  FileEnd(STD_NAMESPACE ostream &out)
+  FileEnd(const OFFilename &ifname,
+	  STD_NAMESPACE ostream &out)
   {
-    if (opt_tabulate)
-      out << OFendl;
+    if (opt_tabulate) {
+      if (opt_print_filename_last)
+	out << field_sep << ifname << OFendl;
+      else
+	out << OFendl;
+    }
   }
 
 
@@ -249,7 +258,7 @@ namespace Tweak {
     FileBegin(ifname,out);
     DumpChildren(dfile->getMetaInfo(), ifname, out, flags);
     DumpChildren(dfile->getDataset(), ifname, out, flags);
-    FileEnd(out);
+    FileEnd(ifname,out);
   }
 
   
