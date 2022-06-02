@@ -24,7 +24,6 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
-#include <libc.h>
 #include <unistd.h>
 #include "dcmtk/ofstd/ofstdinc.h"
 
