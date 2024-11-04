@@ -34,6 +34,7 @@
 #include "dcmtk/dcmdata/dcswap.h"
 #include "dcmtk/dcmdata/dcistrma.h"    /* for class DcmInputStream */
 #include "dcmtk/dcmdata/dcostrma.h"    /* for class DcmOutputStream */
+#include "dcmtk/tweaks/dcmdata.h"
 
 // global flags
 
@@ -280,6 +281,8 @@ void DcmObject::printInfoLineStart(STD_NAMESPACE ostream &out,
                                    const int level,
                                    DcmTag *tag)
 {
+    if (Tweaks::PF_ValueOnly) return;
+
     /* default: use object's tag */
     if (tag == NULL)
         tag = &Tag;
@@ -331,6 +334,8 @@ void DcmObject::printInfoLineEnd(STD_NAMESPACE ostream &out,
                                  const unsigned long printedLength,
                                  DcmTag *tag)
 {
+    if (Tweaks::PF_ValueOnly) return;
+
     unsigned long vm = 0;
     unsigned long length = 0;
     /* default: use object's tag, VM and length */
